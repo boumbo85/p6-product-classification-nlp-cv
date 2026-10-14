@@ -1,0 +1,27 @@
+{
+  "seed": 42,
+  "n": 1050,
+  "categories": [
+    "Baby Care",
+    "Beauty and Personal Care",
+    "Computers",
+    "Home Decor & Festive Needs",
+    "Home Furnishing",
+    "Kitchen & Dining",
+    "Watches"
+  ],
+  "metrics": {
+    "text": {
+      "accuracy": 0.8143,
+      "macro_f1": 0.8095
+    },
+    "image": {
+      "accuracy": 0.8238,
+      "macro_f1": 0.8212
+    },
+    "fusion": {
+      "accuracy": 0.781,
+      "macro_f1": 0.7758
+    }
+  }
+}

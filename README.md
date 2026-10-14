@@ -53,6 +53,18 @@ build the features — only to score them.
 | Image | SIFT (bag-of-visual-words) | 0.053 |
 | **Image** | **CNN — VGG16 transfer learning** | **0.460** 🏆 |
 
+![ARI benchmark across the 8 methods](docs/figures/ari_benchmark.png)
+
+The best image model, VGG16, is worth a closer look. Clustering alone gives
+ARI 0.460; once the clusters are optimally matched to the true categories
+(Hungarian assignment), that is a **66% accuracy** — on 7 classes, from images
+only, with no supervision. The confusion matrix shows the model confuses exactly
+the categories a human would: *Home Furnishing* leaks into *Baby Care* and
+*Home Decor* (visually similar textiles and decor), while *Watches* is near-perfect
+(138/150).
+
+![VGG16 confusion matrix](docs/figures/cnn_confusion_matrix.png)
+
 ### What the numbers say
 
 - **Feasibility: yes.** The best text (0.475) and image (0.460) methods both
@@ -63,7 +75,39 @@ build the features — only to score them.
 - **Transfer learning is the unlock for images.** VGG16 (0.460) vs SIFT (0.053) —
   a ~9× gain. Learned features transfer across domains; hand-crafted ones don't.
 - **The two modalities are complementary** (text ≈ image), which is the case for
-  fusing them in the next step.
+  fusing them — tested in phase 2 below.
+
+### Phase 2 — supervised classification & fusion
+
+Phase 1 answers *"is the signal there?"*. Phase 2 answers *"how well can we
+actually classify?"* — a supervised classifier (Logistic Regression), fixed
+seed, stratified 80/20 split, accuracy + macro-F1.
+
+| Features | Accuracy | Macro-F1 |
+|---|:--:|:--:|
+| **Image — VGG16** | **0.824** | 0.821 |
+| **Text — Word2Vec** | **0.814** | 0.809 |
+| Fusion (text ⊕ image, naïve concat) | 0.781 | 0.776 |
+
+![Supervised accuracy — single modality vs fusion](docs/figures/supervised_accuracy.png)
+
+Two results worth stating plainly:
+
+- **~0.82 accuracy on 7 classes**, from a single modality — feasibility is now a
+  hard number, not a hunch.
+- **Naïve fusion makes it *worse* (0.78).** Concatenating 300-dim text and
+  200-dim image features hands the classifier 500 features of unequal scale and
+  density; the weak dimensions add noise faster than signal. *Fusion is a
+  modelling decision, not an `np.hstack`.* The right next step is late fusion
+  (combine per-modality probabilities) or a learned joint space — see
+  [notebook 02](notebooks/02_supervised_fusion.ipynb).
+
+> **Reproducibility note.** The original 2023 study reported slightly different
+> ARI values between the slides and the notebook (e.g. USE ≈ 0.49 vs 0.42)
+> because random seeds were not fixed. Everything here is **re-run with
+> `seed=42` fixed across Word2Vec, PCA, t-SNE, K-Means and the train/test
+> split**, so the numbers are stable and reproducible. The phase-1 ARI table
+> reflects the notebook values.
 
 ### Tech stack
 
@@ -80,13 +124,19 @@ p6-product-classification-nlp-cv/
 ├── README.md                                   # this file
 ├── requirements.txt                            # pinned dependencies
 ├── LICENSE                                      # MIT
+├── results_supervised.json                     # phase-2 metrics (reproducible)
 ├── notebooks/
-│   └── 01_product_classification_text_image.ipynb   # clean, readable case study
+│   ├── 01_product_classification_text_image.ipynb   # phase 1 — unsupervised benchmark
+│   └── 02_supervised_fusion.ipynb                   # phase 2 — supervised + fusion
+├── src/
+│   └── run_supervised.py                       # phase-2 pipeline (seed=42, reproducible)
 ├── data/
 │   └── README.md                               # how to fetch the dataset (not versioned)
-└── docs/                                        # OpenClassrooms deliverables
+└── docs/                                        # deliverables & rendered outputs
     ├── notebook_original.ipynb                 # original working notebook
-    └── presentation.pptx                       # defence slides
+    ├── presentation.pptx                       # defence slides
+    ├── *.html                                  # rendered notebooks (read without Jupyter)
+    └── figures/                                # charts used in this README
 ```
 
 ### Reproduce
@@ -105,13 +155,12 @@ jupyter lab notebooks/01_product_classification_text_image.ipynb
 
 ### Limits & next steps
 
-- Unsupervised feasibility only — the natural follow-up is a **supervised**
-  classifier reporting accuracy / F1 per category.
-- **Fuse** the best text (Word2Vec / USE) and image (VGG16) features and measure
-  the lift over each single modality.
+- **Late fusion** — combine per-modality probabilities (averaging / stacking)
+  instead of concatenating raw features, which lost accuracy here.
 - Fine-tune BERT and a vision backbone end-to-end instead of frozen features.
-- Target the hard pairs surfaced by the confusion matrix (*Home Decor* vs
+- Target the hard pairs surfaced by the confusion matrices (*Home Decor* vs
   *Home Furnishing*).
+- Scale beyond 1,050 products to confirm the ~0.82 ceiling holds.
 
 ---
 
@@ -152,6 +201,18 @@ ne sert à construire les features — seulement à les évaluer.
 | Image | SIFT (sac de mots visuels) | 0,053 |
 | **Image** | **CNN — VGG16 transfer learning** | **0,460** 🏆 |
 
+![Benchmark ARI des 8 méthodes](docs/figures/ari_benchmark.png)
+
+Le meilleur modèle image, VGG16, mérite un zoom. Le clustering seul donne
+ARI 0,460 ; une fois les clusters alignés de façon optimale sur les vraies
+catégories (affectation hongroise), cela correspond à **66% d'accuracy** — sur
+7 classes, à partir des images seules, sans supervision. La matrice de confusion
+montre que le modèle confond exactement les catégories qu'un humain confondrait :
+*Home Furnishing* déborde sur *Baby Care* et *Home Decor* (textiles et déco
+visuellement proches), tandis que *Watches* est quasi parfait (138/150).
+
+![Matrice de confusion VGG16](docs/figures/cnn_confusion_matrix.png)
+
 ### Lecture des résultats
 
 - **Faisabilité : oui.** Les meilleures méthodes texte (0,475) et image (0,460)
@@ -164,8 +225,40 @@ ne sert à construire les features — seulement à les évaluer.
 - **Le transfer learning débloque l'image.** VGG16 (0,460) vs SIFT (0,053) — un
   gain d'environ 9×. Les features apprises se transfèrent, pas les features
   artisanales.
-- **Les deux modalités sont complémentaires** (texte ≈ image) — ce qui justifie
-  leur fusion à l'étape suivante.
+- **Les deux modalités sont complémentaires** (texte ≈ image) — fusion testée en
+  phase 2 ci-dessous.
+
+### Phase 2 — classification supervisée & fusion
+
+La phase 1 répond à *« le signal existe-t-il ? »*. La phase 2 répond à
+*« à quel point sait-on classer ? »* — un classifieur supervisé (régression
+logistique), seed figé, split stratifié 80/20, accuracy + macro-F1.
+
+| Features | Accuracy | Macro-F1 |
+|---|:--:|:--:|
+| **Image — VGG16** | **0,824** | 0,821 |
+| **Texte — Word2Vec** | **0,814** | 0,809 |
+| Fusion (texte ⊕ image, concat naïve) | 0,781 | 0,776 |
+
+![Accuracy supervisée — modalité seule vs fusion](docs/figures/supervised_accuracy.png)
+
+Deux résultats à énoncer franchement :
+
+- **~0,82 d'accuracy sur 7 classes**, avec une seule modalité — la faisabilité
+  devient un chiffre dur, plus une intuition.
+- **La fusion naïve fait *moins bien* (0,78).** Concaténer 300 dims texte et
+  200 dims image donne au classifieur 500 variables d'échelles et de densités
+  inégales ; les dimensions faibles ajoutent du bruit plus vite que du signal.
+  *Une fusion est un choix de modélisation, pas un `np.hstack`.* La bonne suite :
+  late fusion (combiner les probabilités par modalité) ou un espace joint appris
+  — voir [notebook 02](notebooks/02_supervised_fusion.ipynb).
+
+> **Note de reproductibilité.** L'étude originale de 2023 affichait des valeurs
+> d'ARI différentes entre les slides et le notebook (ex. USE ≈ 0,49 vs 0,42)
+> car les seeds n'étaient pas figés. Tout ici est **ré-exécuté avec `seed=42`
+> figé** (Word2Vec, PCA, t-SNE, K-Means, split train/test), donc les chiffres
+> sont stables et reproductibles. Le tableau ARI de la phase 1 reflète les
+> valeurs du notebook.
 
 ### Stack technique
 
@@ -191,14 +284,13 @@ jupyter lab notebooks/01_product_classification_text_image.ipynb
 
 ### Limites & suites
 
-- Faisabilité non supervisée uniquement — la suite logique est un classifieur
-  **supervisé** avec accuracy / F1 par catégorie.
-- **Fusionner** les meilleures features texte (Word2Vec / USE) et image (VGG16)
-  et mesurer le gain sur chaque modalité seule.
+- **Late fusion** — combiner les probabilités par modalité (moyenne / stacking)
+  au lieu de concaténer les features brutes, qui a fait perdre de l'accuracy ici.
 - Fine-tuner BERT et un backbone vision de bout en bout plutôt que des features
   gelées.
-- Viser les paires difficiles révélées par la matrice de confusion (*Home Decor*
-  vs *Home Furnishing*).
+- Viser les paires difficiles révélées par les matrices de confusion
+  (*Home Decor* vs *Home Furnishing*).
+- Passer à l'échelle au-delà de 1 050 produits pour confirmer le plafond ~0,82.
 
 ---
 
