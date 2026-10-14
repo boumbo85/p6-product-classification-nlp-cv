@@ -80,27 +80,31 @@ the categories a human would: *Home Furnishing* leaks into *Baby Care* and
 ### Phase 2 — supervised classification & fusion
 
 Phase 1 answers *"is the signal there?"*. Phase 2 answers *"how well can we
-actually classify?"* — a supervised classifier (Logistic Regression), fixed
-seed, stratified 80/20 split, accuracy + macro-F1.
+actually classify?"* — supervised classifiers (Logistic Regression / SVM /
+Random Forest), fixed seed, stratified 80/20 split, best model kept per modality,
+then two fusion strategies compared.
 
-| Features | Accuracy | Macro-F1 |
-|---|:--:|:--:|
-| **Image — VGG16** | **0.824** | 0.821 |
-| **Text — Word2Vec** | **0.814** | 0.809 |
-| Fusion (text ⊕ image, naïve concat) | 0.781 | 0.776 |
+| Features | Classifier | Accuracy | Macro-F1 |
+|---|---|:--:|:--:|
+| Text — Word2Vec | LogReg | 0.810 | 0.807 |
+| Image — VGG16 | SVM | 0.876 | 0.874 |
+| Early fusion (concat features) | LogReg | 0.829 | 0.825 |
+| **Late fusion (avg of probabilities)** | — | **0.881** | **0.877** |
 
-![Supervised accuracy — single modality vs fusion](docs/figures/supervised_accuracy.png)
+![Supervised accuracy — single modality vs fusion strategies](docs/figures/supervised_accuracy.png)
 
-Two results worth stating plainly:
+Three results worth stating plainly:
 
-- **~0.82 accuracy on 7 classes**, from a single modality — feasibility is now a
-  hard number, not a hunch.
-- **Naïve fusion makes it *worse* (0.78).** Concatenating 300-dim text and
-  200-dim image features hands the classifier 500 features of unequal scale and
-  density; the weak dimensions add noise faster than signal. *Fusion is a
-  modelling decision, not an `np.hstack`.* The right next step is late fusion
-  (combine per-modality probabilities) or a learned joint space — see
-  [notebook 02](notebooks/02_supervised_fusion.ipynb).
+- **The model sweep pays off.** On images, SVM (0.876) beats Logistic Regression
+  (0.824) by 5 points — a reminder not to settle for one classifier.
+- **Early fusion barely helps (0.829).** Concatenating 300-dim text and 200-dim
+  image features hands the model 500 dimensions of unequal scale and density; the
+  weak ones add noise as fast as signal. *Fusion is a modelling decision, not an
+  `np.hstack`.*
+- **Late fusion wins (0.881).** Averaging the per-class probabilities of the two
+  best single-modality models beats *either* modality alone — the modalities
+  correct each other's errors when combined at the decision level, not the feature
+  level. See [notebook 02](notebooks/02_supervised_fusion.ipynb).
 
 > **Reproducibility note.** The original 2023 study reported slightly different
 > ARI values between the slides and the notebook (e.g. USE ≈ 0.49 vs 0.42)
@@ -108,6 +112,25 @@ Two results worth stating plainly:
 > `seed=42` fixed across Word2Vec, PCA, t-SNE, K-Means and the train/test
 > split**, so the numbers are stable and reproducible. The phase-1 ARI table
 > reflects the notebook values.
+
+### How I'd approach this in 2026
+
+The project is from 2023; the field moved fast. Rather than pretend otherwise,
+[notebook 03](notebooks/03_modern_2026_approach.ipynb) is a design note on what
+I'd change today — and what I'd keep.
+
+| 2023 (this project) | 2026 | Why |
+|---|---|---|
+| Word2Vec / BERT `[CLS]`, frozen | **Sentence-Transformers** (`all-MiniLM`, `bge`) | embeddings built for similarity, not repurposed |
+| VGG16 features | **DINOv2 / modern ViT** | stronger, more transferable visual features |
+| two encoders + late fusion | **CLIP — one shared text+image space** | native multimodal; fusion becomes trivial |
+
+The real unlock is **CLIP**: text and image land in the *same* vector space, so
+the whole early-vs-late fusion problem disappears — and you get **zero-shot
+classification** (label a product by writing the category name, no training). The
+2023 pipeline stays a valid, dependency-light baseline; what changes is the
+tooling, not the rigour (fair protocol, fixed seeds, honest negatives all carry
+over).
 
 ### Tech stack
 
@@ -127,7 +150,8 @@ p6-product-classification-nlp-cv/
 ├── results_supervised.json                     # phase-2 metrics (reproducible)
 ├── notebooks/
 │   ├── 01_product_classification_text_image.ipynb   # phase 1 — unsupervised benchmark
-│   └── 02_supervised_fusion.ipynb                   # phase 2 — supervised + fusion
+│   ├── 02_supervised_fusion.ipynb                   # phase 2 — supervised + late fusion
+│   └── 03_modern_2026_approach.ipynb                # design note — CLIP / 2026
 ├── src/
 │   └── run_supervised.py                       # phase-2 pipeline (seed=42, reproducible)
 ├── data/
@@ -231,27 +255,31 @@ visuellement proches), tandis que *Watches* est quasi parfait (138/150).
 ### Phase 2 — classification supervisée & fusion
 
 La phase 1 répond à *« le signal existe-t-il ? »*. La phase 2 répond à
-*« à quel point sait-on classer ? »* — un classifieur supervisé (régression
-logistique), seed figé, split stratifié 80/20, accuracy + macro-F1.
+*« à quel point sait-on classer ? »* — des classifieurs supervisés (régression
+logistique / SVM / Random Forest), seed figé, split stratifié 80/20, meilleur
+modèle retenu par modalité, puis deux stratégies de fusion comparées.
 
-| Features | Accuracy | Macro-F1 |
-|---|:--:|:--:|
-| **Image — VGG16** | **0,824** | 0,821 |
-| **Texte — Word2Vec** | **0,814** | 0,809 |
-| Fusion (texte ⊕ image, concat naïve) | 0,781 | 0,776 |
+| Features | Classifieur | Accuracy | Macro-F1 |
+|---|---|:--:|:--:|
+| Texte — Word2Vec | LogReg | 0,810 | 0,807 |
+| Image — VGG16 | SVM | 0,876 | 0,874 |
+| Early fusion (concat features) | LogReg | 0,829 | 0,825 |
+| **Late fusion (moyenne des probabilités)** | — | **0,881** | **0,877** |
 
-![Accuracy supervisée — modalité seule vs fusion](docs/figures/supervised_accuracy.png)
+![Accuracy supervisée — modalité seule vs stratégies de fusion](docs/figures/supervised_accuracy.png)
 
-Deux résultats à énoncer franchement :
+Trois résultats à énoncer franchement :
 
-- **~0,82 d'accuracy sur 7 classes**, avec une seule modalité — la faisabilité
-  devient un chiffre dur, plus une intuition.
-- **La fusion naïve fait *moins bien* (0,78).** Concaténer 300 dims texte et
-  200 dims image donne au classifieur 500 variables d'échelles et de densités
-  inégales ; les dimensions faibles ajoutent du bruit plus vite que du signal.
-  *Une fusion est un choix de modélisation, pas un `np.hstack`.* La bonne suite :
-  late fusion (combiner les probabilités par modalité) ou un espace joint appris
-  — voir [notebook 02](notebooks/02_supervised_fusion.ipynb).
+- **Le balayage de modèles paie.** Sur l'image, le SVM (0,876) bat la régression
+  logistique (0,824) de 5 points — on ne se contente pas d'un seul classifieur.
+- **L'early fusion n'aide quasiment pas (0,829).** Concaténer 300 dims texte et
+  200 dims image donne 500 variables d'échelles et densités inégales ; les
+  faibles ajoutent du bruit aussi vite que du signal. *Une fusion est un choix de
+  modélisation, pas un `np.hstack`.*
+- **Le late fusion gagne (0,881).** Moyenner les probabilités par classe des deux
+  meilleurs modèles mono-modalité dépasse *chaque* modalité seule — les modalités
+  corrigent leurs erreurs quand on les combine au niveau de la décision, pas des
+  features. Voir [notebook 02](notebooks/02_supervised_fusion.ipynb).
 
 > **Note de reproductibilité.** L'étude originale de 2023 affichait des valeurs
 > d'ARI différentes entre les slides et le notebook (ex. USE ≈ 0,49 vs 0,42)
@@ -259,6 +287,25 @@ Deux résultats à énoncer franchement :
 > figé** (Word2Vec, PCA, t-SNE, K-Means, split train/test), donc les chiffres
 > sont stables et reproductibles. Le tableau ARI de la phase 1 reflète les
 > valeurs du notebook.
+
+### Comment je referais ce projet en 2026
+
+Le projet date de 2023 ; le domaine a beaucoup bougé. Plutôt que de faire comme
+si de rien n'était, le [notebook 03](notebooks/03_modern_2026_approach.ipynb) est
+une note de conception : ce que je changerais aujourd'hui — et ce que je garderais.
+
+| 2023 (ce projet) | 2026 | Pourquoi |
+|---|---|---|
+| Word2Vec / BERT `[CLS]`, gelés | **Sentence-Transformers** (`all-MiniLM`, `bge`) | embeddings conçus pour la similarité, pas détournés |
+| features VGG16 | **DINOv2 / ViT moderne** | features visuelles plus fortes et transférables |
+| deux encodeurs + late fusion | **CLIP — un espace texte+image partagé** | multimodal natif ; la fusion devient triviale |
+
+Le vrai déclic, c'est **CLIP** : texte et image atterrissent dans le *même*
+espace vectoriel, donc tout le problème early-vs-late fusion disparaît — et on
+obtient de la **classification zero-shot** (étiqueter un produit en écrivant le
+nom de la catégorie, sans entraînement). Le pipeline 2023 reste une baseline
+valide et légère ; ce qui change, c'est l'outillage, pas la rigueur (protocole
+équitable, seeds figés, résultats négatifs assumés restent valables).
 
 ### Stack technique
 

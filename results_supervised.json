@@ -12,16 +12,24 @@
   ],
   "metrics": {
     "text": {
-      "accuracy": 0.8143,
-      "macro_f1": 0.8095
+      "accuracy": 0.8095,
+      "macro_f1": 0.8073
     },
     "image": {
-      "accuracy": 0.8238,
-      "macro_f1": 0.8212
+      "accuracy": 0.8762,
+      "macro_f1": 0.8744
     },
-    "fusion": {
-      "accuracy": 0.781,
-      "macro_f1": 0.7758
+    "fusion_early": {
+      "accuracy": 0.8286,
+      "macro_f1": 0.8255
+    },
+    "fusion_late": {
+      "accuracy": 0.881,
+      "macro_f1": 0.8769
+    },
+    "best_classifier": {
+      "text": "LogReg",
+      "image": "SVM"
     }
   }
 }
