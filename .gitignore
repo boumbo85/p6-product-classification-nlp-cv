@@ -1,0 +1,71 @@
+# ─────────────────────────────────────────────────────────────
+#  Data & models — never versioned (see data/README.md to fetch)
+# ─────────────────────────────────────────────────────────────
+data/**
+!data/README.md
+!data/.gitkeep
+
+# Pre-trained models / downloaded weights
+*.tar.gz
+*.h5
+*.pb
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.bin
+saved_model/
+universal-sentence-encoder*/
+
+# Raw images / large media
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+# (docs figures are whitelisted explicitly)
+!docs/figures/**
+
+# ─────────────────────────────────────────────────────────────
+#  Python
+# ─────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+PROJET06env/
+*env/
+
+# ─────────────────────────────────────────────────────────────
+#  Jupyter
+# ─────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+*-checkpoint.ipynb
+
+# ─────────────────────────────────────────────────────────────
+#  OS / IDE
+# ─────────────────────────────────────────────────────────────
+.DS_Store
+desktop.ini
+Thumbs.db
+.vscode/
+.idea/
+
+# ─────────────────────────────────────────────────────────────
+#  Archives / deliverables bundles (keep docs/ sources instead)
+# ─────────────────────────────────────────────────────────────
+*.zip

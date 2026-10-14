@@ -1,0 +1,23 @@
+# Core
+numpy==1.26.4
+pandas==2.2.2
+scipy==1.13.1
+scikit-learn==1.5.1
+
+# Visualisation
+matplotlib==3.9.1
+seaborn==0.13.2
+
+# NLP
+nltk==3.8.1
+gensim==4.3.2
+transformers==4.42.4
+
+# Computer Vision / Deep Learning
+tensorflow==2.16.1
+opencv-python==4.10.0.84
+Pillow==10.4.0
+
+# Notebook
+jupyterlab==4.2.4
+nbformat==5.11.1
