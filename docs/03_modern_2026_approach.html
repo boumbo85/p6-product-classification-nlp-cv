@@ -7796,7 +7796,7 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=268d16f1">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=99118e0b">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7816,7 +7816,7 @@ labelling then become cosine-similarity lookups.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ceb3e3a5">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=e24b18a0">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7829,7 +7829,7 @@ K-Means + manual Hungarian alignment; here it is a dot product.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=bce1d9c4">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=0fcbbca7">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7860,15 +7860,16 @@ K-Means + manual Hungarian alignment; here it is a dot product.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=d5f0fd9c">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=210e769f">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="Measured-output-(zero-shot,-n=1,050,-no-training)">Measured output (zero-shot, n=1,050, no training)<a class="anchor-link" href="#Measured-output-(zero-shot,-n=1,050,-no-training)">¶</a></h3><pre><code>CLIP zero-shot · text only     acc=0.635  macroF1=0.636
-CLIP zero-shot · image only     acc=0.691  macroF1=0.673
-CLIP zero-shot · image + text   acc=0.716  macroF1=0.708   &lt;- best zero-shot
+<h3 id="Measured-output-(zero-shot,-n=1,050,-no-training)">Measured output (zero-shot, n=1,050, no training)<a class="anchor-link" href="#Measured-output-(zero-shot,-n=1,050,-no-training)">¶</a></h3><pre><code>CLIP zero-shot · text only (truncated)   acc=0.635  macroF1=0.636
+CLIP zero-shot · image only              acc=0.691  macroF1=0.673
+CLIP zero-shot · image + text (trunc)    acc=0.716
+CLIP zero-shot · image + text (pool)     acc=0.722   &lt;- best zero-shot
 </code></pre>
 <p><img alt="CLIP zero-shot vs supervised 2023" src="../docs/figures/clip_zeroshot.png"/>
 <img alt="CLIP zero-shot confusion matrix" src="../docs/figures/clip_zeroshot_confusion.png"/></p>
@@ -7876,49 +7877,87 @@ CLIP zero-shot · image + text   acc=0.716  macroF1=0.708   &lt;- best zero-shot
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=67de9208">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=deb4506e">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2-%C2%B7-The-honest-read">2 · The honest read<a class="anchor-link" href="#2-%C2%B7-The-honest-read">¶</a></h2><table>
+<h2 id="2-%C2%B7-The-honest-read-%E2%80%94-and-the-supervised-result-that-matters">2 · The honest read — and the supervised result that matters<a class="anchor-link" href="#2-%C2%B7-The-honest-read-%E2%80%94-and-the-supervised-result-that-matters">¶</a></h2><p><strong>Zero-shot first.</strong> CLIP reaches <strong>~72%</strong> on 7 classes <strong>with no labelled data</strong>
+(image+text fusion). That stays a few points behind the <em>trained</em> 2023 pipeline,
+so zero-shot CLIP does <strong>not</strong> beat a supervised model — what it buys is a
+different cost structure: no training, no labels, fusion for free (a mean in the
+shared space). For a cold-start catalogue with no labels, 72% out of the box
+beats collecting and labelling a training set.</p>
+<table>
 <thead>
 <tr>
-<th>Approach</th>
+<th>Zero-shot approach</th>
 <th style="text-align:center">Training</th>
 <th style="text-align:center">Accuracy</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>CLIP zero-shot — image + text</td>
+<td>CLIP zero-shot — image + text (pool)</td>
 <td style="text-align:center"><strong>none</strong></td>
-<td style="text-align:center"><strong>0.716</strong></td>
+<td style="text-align:center"><strong>0.722</strong></td>
 </tr>
 <tr>
 <td>Supervised 2023 — VGG16 + SVM</td>
 <td style="text-align:center">trained</td>
-<td style="text-align:center">0.876</td>
+<td style="text-align:center">0.857 ± 0.022</td>
 </tr>
 <tr>
 <td>Supervised 2023 — late fusion</td>
 <td style="text-align:center">trained</td>
-<td style="text-align:center">0.881</td>
+<td style="text-align:center">0.889 ± 0.021</td>
 </tr>
 </tbody>
 </table>
-<p>Zero-shot CLIP reaches <strong>72%</strong> on 7 classes <strong>with no labelled data</strong> — but stays
-~16 points behind the <em>trained</em> 2023 pipeline. CLIP does <strong>not</strong> beat a
-supervised model here. What it buys is a different cost structure: <strong>no training,
-no labels, and multimodal fusion for free</strong> (a mean in the shared space). For a
-cold-start catalogue with no labels, 72% out of the box beats collecting and
-labelling a training set — that is the real 2026 argument, not "CLIP wins".</p>
+<p><strong>The decisive comparison is supervised-vs-supervised.</strong> Train a linear head on
+CLIP features under the <em>same</em> repeated 5-fold CV × 5 seeds used in notebook 02,
+and CLIP jumps ahead of the 2023 pipeline:</p>
+<table>
+<thead>
+<tr>
+<th>Supervised (same CV protocol)</th>
+<th>Features</th>
+<th style="text-align:center">Accuracy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2023 — late fusion</td>
+<td>Word2Vec + VGG16</td>
+<td style="text-align:center">0.889 ± 0.021</td>
+</tr>
+<tr>
+<td>2026 — CLIP image</td>
+<td>CLIP image</td>
+<td style="text-align:center">0.900 ± 0.016</td>
+</tr>
+<tr>
+<td>2026 — CLIP text</td>
+<td>CLIP text</td>
+<td style="text-align:center">0.952 ± 0.017</td>
+</tr>
+<tr>
+<td><strong>2026 — CLIP image + text</strong></td>
+<td><strong>CLIP fusion</strong></td>
+<td style="text-align:center"><strong>0.953 ± 0.018</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>At equal supervision, CLIP takes the task from 0.889 → 0.953.</strong> Same metric,
+same CV protocol, same data — only the encoder changes. That is the real 2026
+argument: not "zero-shot wins", but "one pretrained multimodal encoder beats the
+hand-built two-tower 2023 pipeline, and fuses for free".</p>
 </div>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ba1bcd15">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=35e7dd30">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7930,7 +7969,7 @@ regimes — comparing them directly would be dishonest. So CLIP is re-scored on 
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=e426e613">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=219c1a92">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7938,29 +7977,30 @@ regimes — comparing them directly would be dishonest. So CLIP is re-scored on 
 <div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1"># same evaluate() as notebook 01 (random_state=6), applied to CLIP embeddings</span>
-<span class="c1"># ari_text  = ari_2023_protocol(txt_emb)</span>
-<span class="c1"># ari_image = ari_2023_protocol(img_emb)</span>
-<span class="c1"># ari_fused = ari_2023_protocol(fused)       # text+image in one shared space</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">"""   ARI · CLIP text          = 0.631   (2023 Word2Vec = 0.475)</span>
-<span class="s2">   ARI · CLIP image         = 0.590   (2023 VGG16    = 0.460)</span>
-<span class="s2">   ARI · CLIP text+image    = 0.674   (no 2023 equivalent)"""</span><span class="p">)</span>
+<div class="highlight hl-python"><pre><span></span><span class="c1"># CLIP embeddings re-scored on the 2023 UNSUPERVISED protocol, now in PCA space</span>
+<span class="c1"># (clustering in PCA, not t-SNE), reported as mean +/- std over 5 seeds.</span>
+<span class="c1"># ari_text  = ari_pca_protocol(txt_emb)</span>
+<span class="c1"># ari_image = ari_pca_protocol(img_emb)</span>
+<span class="c1"># ari_fused = ari_pca_protocol(fused)       # text+image in one shared space</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'''   ARI (PCA) · CLIP text        = 0.47 +/- 0.02   (2023 Word2Vec PCA = 0.18 +/- 0.00)</span>
+<span class="s1">   ARI (PCA) · CLIP image       = 0.54 +/- 0.02   (2023 VGG16    PCA = 0.49 +/- 0.01)</span>
+<span class="s1">   ARI (PCA) · CLIP text+image  = 0.68 +/- 0.03   (no 2023 equivalent)'''</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=301f1c6c">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=986d78af">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="Like-for-like-result">Like-for-like result<a class="anchor-link" href="#Like-for-like-result">¶</a></h3><table>
+<h3 id="Like-for-like-result-(unsupervised-ARI,-clustering-in-PCA-space)">Like-for-like result (unsupervised ARI, clustering in PCA space)<a class="anchor-link" href="#Like-for-like-result-(unsupervised-ARI,-clustering-in-PCA-space)">¶</a></h3><table>
 <thead>
 <tr>
-<th>Unsupervised regime (ARI)</th>
+<th>Unsupervised regime (ARI, PCA · mean ± std)</th>
 <th style="text-align:center">2023</th>
 <th style="text-align:center">2026 — CLIP</th>
 </tr>
@@ -7968,46 +8008,52 @@ regimes — comparing them directly would be dishonest. So CLIP is re-scored on 
 <tbody>
 <tr>
 <td>Text</td>
-<td style="text-align:center">Word2Vec 0.475</td>
-<td style="text-align:center"><strong>0.631</strong></td>
+<td style="text-align:center">Word2Vec 0.18 ± 0.00</td>
+<td style="text-align:center"><strong>0.47 ± 0.02</strong></td>
 </tr>
 <tr>
 <td>Image</td>
-<td style="text-align:center">VGG16 0.460</td>
-<td style="text-align:center"><strong>0.590</strong></td>
+<td style="text-align:center">VGG16 0.49 ± 0.01</td>
+<td style="text-align:center"><strong>0.54 ± 0.02</strong></td>
 </tr>
 <tr>
 <td>Text + image (shared space)</td>
 <td style="text-align:center"><em>n/a in 2023</em></td>
-<td style="text-align:center"><strong>0.674</strong></td>
+<td style="text-align:center"><strong>0.68 ± 0.03</strong></td>
 </tr>
 </tbody>
 </table>
-<p><img alt="2023 vs CLIP at equal metric" src="../docs/figures/ari_2023_vs_clip.png"/></p>
-<p>Same metric, same pipeline, same data: CLIP lifts ARI by <strong>+0.16 (text)</strong> and
-<strong>+0.13 (image)</strong>. That is the honest measure of what revisiting with 2026 tech
-buys — on <em>my own</em> 2023 method, not a metric swap. The fusion row (0.674) is a
-plain mean in one shared space; in 2023 that required the whole early-vs-late
-fusion study (notebook 02).</p>
+<p><img alt="2023 vs CLIP at equal metric" src="../docs/figures/ari_2023_vs_clip.png"/>
+Same metric, same PCA pipeline, same data: CLIP lifts ARI by <strong>+0.29 (text)</strong> and
+<strong>+0.05 (image)</strong>, and fuses to <strong>0.68</strong> with a plain mean in one shared space —
+which in 2023 required the whole early-vs-late fusion study (notebook 02). (Both
+sides are scored with clustering in PCA space, not t-SNE, so the numbers are
+comparable and honest.)</p>
 </div>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=0f1d9c5d">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=8b9978cf">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="3-%C2%B7-A-real-limitation">3 · A real limitation<a class="anchor-link" href="#3-%C2%B7-A-real-limitation">¶</a></h2><p>CLIP's text encoder is hard-capped at <strong>77 tokens</strong>. Flipkart descriptions run up
+<h2 id="3-%C2%B7-A-real-limitation-%E2%80%94-and-a-negative-result">3 · A real limitation — and a negative result<a class="anchor-link" href="#3-%C2%B7-A-real-limitation-%E2%80%94-and-a-negative-result">¶</a></h2><p>CLIP's text encoder is hard-capped at <strong>77 tokens</strong>. Flipkart descriptions run up
 to ~700 tokens, so the text side is <strong>truncated</strong> and loses information — part of
-why text-only zero-shot (0.635) is the weakest of the three. Lifting this
-(chunk-and-pool, or a long-context multimodal encoder) is the obvious next step.</p>
+why text-only zero-shot (0.635) is the weakest of the three.</p>
+<p>The obvious fix is <strong>chunk-and-pool</strong>: split the long description into ≤77-token
+chunks, embed each, and mean-pool. <strong>It does not help here</strong> — chunk-pooled text
+lands at <strong>0.631</strong>, statistically on top of the truncated 0.635 (no gain), and the
+pooled fusion only nudges 0.716 → 0.722. On this keyword-style catalogue the first
+77 tokens already carry the category signal, so pooling the tail adds noise, not
+information. An honest negative: the easy trick does not move the needle; a
+genuine long-context multimodal encoder would be the real next step.</p>
 </div>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=3a3952b3">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=e9c1968e">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>

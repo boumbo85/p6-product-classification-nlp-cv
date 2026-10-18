@@ -7802,14 +7802,14 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Phase-2-%E2%80%94-Supervised-classification-&amp;-multimodal-fusion">Phase 2 — Supervised classification &amp; multimodal fusion<a class="anchor-link" href="#Phase-2-%E2%80%94-Supervised-classification-&amp;-multimodal-fusion">¶</a></h1><p><strong>From "is it feasible?" to "how well can we classify?" — and does fusing help?</strong></p>
-<p>Phase 1 (notebook 01) showed, with unsupervised clustering + ARI, that both text
+<h1 id="Phase-2-%E2%80%94-Supervised-classification-&amp;-multimodal-fusion">Phase 2 — Supervised classification &amp; multimodal fusion<a class="anchor-link" href="#Phase-2-%E2%80%94-Supervised-classification-&amp;-multimodal-fusion">¶</a></h1><p><strong>From "is it feasible?" to "how well can we classify?" — and does fusing help?</strong>
+Phase 1 (notebook 01) showed, with unsupervised clustering + ARI, that both text
 and images carry category signal. This notebook trains real <strong>supervised</strong>
-classifiers (fixed seed, held-out test set), picks the best model per modality,
-and compares <strong>four fusion strategies</strong> — including the one that undercuts the
-easy headline.</p>
-<hr/>
-<h3 id="Results-(seed=42-%C2%B7-workers=1-%C2%B7-stratified-80/20-%C2%B7-n=1,050)">Results (seed=42 · workers=1 · stratified 80/20 · n=1,050)<a class="anchor-link" href="#Results-(seed=42-%C2%B7-workers=1-%C2%B7-stratified-80/20-%C2%B7-n=1,050)">¶</a></h3><table>
+classifiers, picks the best model per modality, and compares <strong>four fusion
+strategies</strong> — including the one that undercuts the easy headline.</p>
+<h2 id="Evaluation-is-repeated-stratified-5-fold-cross-validation-over-5-seeds%0A(n=1,050),-reported-as-mean-%C2%B1-std-%E2%80%94-not-a-single-80/20-split.-This-gives%0Ahonest-error-bars-and-lets-us-judge-whether-a-fusion-%22gain%22-survives-the-noise.">Evaluation is <strong>repeated stratified 5-fold cross-validation over 5 seeds</strong>
+(n=1,050), reported as <strong>mean ± std</strong> — not a single 80/20 split. This gives
+honest error bars and lets us judge whether a fusion "gain" survives the noise.<a class="anchor-link" href="#Evaluation-is-repeated-stratified-5-fold-cross-validation-over-5-seeds%0A(n=1,050),-reported-as-mean-%C2%B1-std-%E2%80%94-not-a-single-80/20-split.-This-gives%0Ahonest-error-bars-and-lets-us-judge-whether-a-fusion-%22gain%22-survives-the-noise.">¶</a></h2><h3 id="Results-(repeated-stratified-5-fold-CV-over-5-seeds-%C2%B7-mean-%C2%B1-std-%C2%B7-n=1,050)">Results (repeated stratified 5-fold CV over 5 seeds · mean ± std · n=1,050)<a class="anchor-link" href="#Results-(repeated-stratified-5-fold-CV-over-5-seeds-%C2%B7-mean-%C2%B1-std-%C2%B7-n=1,050)">¶</a></h3><table>
 <thead>
 <tr>
 <th>Features</th>
@@ -7822,38 +7822,38 @@ easy headline.</p>
 <tr>
 <td>Text — Word2Vec</td>
 <td>LogReg</td>
-<td style="text-align:center">0.814</td>
-<td style="text-align:center">0.809</td>
+<td style="text-align:center">0.846 ± 0.022</td>
+<td style="text-align:center">0.843</td>
 </tr>
 <tr>
-<td><strong>Image — VGG16</strong></td>
-<td><strong>SVM</strong></td>
-<td style="text-align:center"><strong>0.876</strong></td>
-<td style="text-align:center"><strong>0.874</strong></td>
+<td>Image — VGG16</td>
+<td>SVM</td>
+<td style="text-align:center">0.857 ± 0.022</td>
+<td style="text-align:center">0.855</td>
 </tr>
 <tr>
 <td>Early fusion (concat)</td>
 <td>LogReg</td>
-<td style="text-align:center">0.829</td>
-<td style="text-align:center">0.825</td>
+<td style="text-align:center">0.842 ± 0.025</td>
+<td style="text-align:center">0.841</td>
 </tr>
 <tr>
-<td>Late fusion (avg proba)</td>
+<td><strong>Late fusion (avg proba)</strong></td>
 <td>—</td>
-<td style="text-align:center">0.881</td>
-<td style="text-align:center">0.876</td>
+<td style="text-align:center"><strong>0.889 ± 0.021</strong></td>
+<td style="text-align:center"><strong>0.887</strong></td>
 </tr>
 <tr>
-<td>Weighted fusion (w_text=0.50)</td>
+<td><strong>Weighted fusion</strong></td>
 <td>—</td>
-<td style="text-align:center">0.881</td>
-<td style="text-align:center">0.876</td>
+<td style="text-align:center"><strong>0.889 ± 0.019</strong></td>
+<td style="text-align:center"><strong>0.887</strong></td>
 </tr>
 <tr>
-<td>Stacking (meta-LogReg)</td>
+<td><strong>Stacking (meta-LogReg)</strong></td>
 <td>—</td>
-<td style="text-align:center">0.867</td>
-<td style="text-align:center">0.864</td>
+<td style="text-align:center"><strong>0.889 ± 0.017</strong></td>
+<td style="text-align:center"><strong>0.887</strong></td>
 </tr>
 </tbody>
 </table>
@@ -7998,15 +7998,14 @@ Forest, keep the best per modality.</p>
     <span class="s2">"SVM"</span><span class="p">:</span>    <span class="n">SVC</span><span class="p">(</span><span class="n">kernel</span><span class="o">=</span><span class="s2">"rbf"</span><span class="p">,</span> <span class="n">probability</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">SEED</span><span class="p">),</span>
     <span class="s2">"RF"</span><span class="p">:</span>     <span class="n">RandomForestClassifier</span><span class="p">(</span><span class="n">n_estimators</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">SEED</span><span class="p">),</span>
 <span class="p">}</span>
-
 <span class="k">def</span><span class="w"> </span><span class="nf">score</span><span class="p">(</span><span class="n">Xtr</span><span class="p">,</span> <span class="n">Xte</span><span class="p">,</span> <span class="n">clf</span><span class="p">):</span>
     <span class="n">clf</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">Xtr</span><span class="p">,</span> <span class="n">y_tr</span><span class="p">);</span> <span class="n">pred</span> <span class="o">=</span> <span class="n">clf</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">Xte</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">accuracy_score</span><span class="p">(</span><span class="n">y_te</span><span class="p">,</span> <span class="n">pred</span><span class="p">),</span> <span class="n">f1_score</span><span class="p">(</span><span class="n">y_te</span><span class="p">,</span> <span class="n">pred</span><span class="p">,</span> <span class="n">average</span><span class="o">=</span><span class="s2">"macro"</span><span class="p">),</span> <span class="n">pred</span>
-
 <span class="c1"># Xtr_text, Xte_text = prep(X_text)</span>
 <span class="c1"># Xtr_img,  Xte_img  = prep(X_img, pca_dim=200)</span>
 <span class="c1"># sweep each classifier on each modality -&gt; keep the best</span>
-<span class="c1"># measured: text best = LogReg (0.810) · image best = SVM (0.876)</span>
+<span class="c1"># scored under repeated 5-fold CV x 5 seeds (mean +/- std):</span>
+<span class="c1"># measured: text best = LogReg (0.846 +/- 0.022) · image best = SVM (0.857 +/- 0.022)</span>
 </pre></div>
 </div>
 </div>
@@ -8031,12 +8030,14 @@ Forest, keep the best per modality.</p>
 <div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s1">'''   text  · LogReg  acc=0.814   image · LogReg  acc=0.824</span>
-<span class="s1">   text  · SVM     acc=0.562   image · SVM     acc=0.876   &lt;- best image</span>
-<span class="s1">   text  · RF      acc=0.743   image · RF      acc=0.843</span>
+<div class="highlight hl-python"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s1">'''   repeated stratified 5-fold CV x 5 seeds (accuracy, mean +/- std)</span>
 
-<span class="s1">   best text  = LogReg (0.814)</span>
-<span class="s1">   best image = SVM    (0.876)'''</span><span class="p">)</span>
+<span class="s1">   text  · LogReg  acc=0.846 +/- 0.022   image · LogReg  acc=0.841 +/- 0.024</span>
+<span class="s1">   text  · SVM     acc=0.602 +/- 0.031   image · SVM     acc=0.857 +/- 0.022   &lt;- best image</span>
+<span class="s1">   text  · RF      acc=0.771 +/- 0.027   image · RF      acc=0.838 +/- 0.025</span>
+
+<span class="s1">   best text  = LogReg (0.846 +/- 0.022)</span>
+<span class="s1">   best image = SVM    (0.857 +/- 0.022)'''</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8066,15 +8067,14 @@ vs decision space.</p>
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-python"><pre><span></span><span class="c1"># EARLY: concat features</span>
 <span class="c1"># Xtr_cat = np.hstack([Xtr_text, Xtr_img]); Xte_cat = np.hstack([Xte_text, Xte_img])</span>
-<span class="c1"># acc_early = score(Xtr_cat, Xte_cat, clone(CLASSIFIERS['LogReg']))  # 0.829 (&lt; image-only)</span>
-
+<span class="c1"># acc_early = score(Xtr_cat, Xte_cat, clone(CLASSIFIERS['LogReg']))  # 0.842 (&lt; image-only)</span>
 <span class="c1"># LATE: average the probabilities of the two best single-modality models</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">proba</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">Xtr</span><span class="p">,</span> <span class="n">Xte</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">clone</span><span class="p">(</span><span class="n">CLASSIFIERS</span><span class="p">[</span><span class="n">name</span><span class="p">])</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">Xtr</span><span class="p">,</span> <span class="n">y_tr</span><span class="p">)</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">Xte</span><span class="p">)</span>
 <span class="c1"># p_text = proba('LogReg', Xtr_text, Xte_text)</span>
 <span class="c1"># p_img  = proba('SVM',    Xtr_img,  Xte_img)</span>
 <span class="c1"># pred_late = (p_text + p_img).argmax(axis=1)</span>
-<span class="c1"># acc_late = accuracy_score(y_te, pred_late)   # 0.881  (+0.5pt over image-only = 1 product / 210)</span>
+<span class="c1"># acc_late = accuracy_score(y_te, pred_late)   # 0.889 +/- 0.021  (+3pt over image-only, but error bars overlap)</span>
 </pre></div>
 </div>
 </div>
@@ -8087,12 +8087,13 @@ vs decision space.</p>
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="Measured-output-(fusion)">Measured output (fusion)<a class="anchor-link" href="#Measured-output-(fusion)">¶</a></h3><pre><code>Image only (VGG16+SVM)      acc=0.876  macroF1=0.874
-Early fusion (concat)       acc=0.829  macroF1=0.825   &lt;- worse than image alone
-Late  fusion (avg proba)    acc=0.881  macroF1=0.876   &lt;- +0.5pt = 1 product / 210
-Weighted fusion (w=0.50)    acc=0.881  macroF1=0.876
-Stacking (meta-LogReg)      acc=0.867  macroF1=0.864   &lt;- worse than late fusion
+<h3 id="Measured-output-(fusion-%E2%80%94-repeated-5-fold-CV-x-5-seeds,-mean-+/--std)">Measured output (fusion — repeated 5-fold CV x 5 seeds, mean +/- std)<a class="anchor-link" href="#Measured-output-(fusion-%E2%80%94-repeated-5-fold-CV-x-5-seeds,-mean-+/--std)">¶</a></h3><pre><code>Image only (VGG16+SVM)      acc=0.857 +/- 0.022  macroF1=0.855
+Early fusion (concat)       acc=0.842 +/- 0.025  macroF1=0.841   &lt;- worse than image alone
+Late  fusion (avg proba)    acc=0.889 +/- 0.021  macroF1=0.887   &lt;- +3pt, but bars overlap
+Weighted fusion             acc=0.889 +/- 0.019  macroF1=0.887
+Stacking (meta-LogReg)      acc=0.889 +/- 0.017  macroF1=0.887   &lt;- tied with late fusion
 </code></pre>
+<p>Probability calibration (ECE): image = 0.05 (well calibrated), text = 0.11 (less so).</p>
 <p><img alt="supervised accuracy" src="../docs/figures/supervised_accuracy.png"/>
 <img alt="late-fusion confusion matrix" src="../docs/figures/fusion_confusion_matrix.png"/></p>
 </div>
@@ -8105,21 +8106,24 @@ Stacking (meta-LogReg)      acc=0.867  macroF1=0.864   &lt;- worse than late fus
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="5-%C2%B7-Interpretation-&amp;-conclusion">5 · Interpretation &amp; conclusion<a class="anchor-link" href="#5-%C2%B7-Interpretation-&amp;-conclusion">¶</a></h2><p><strong>The sweep matters.</strong> SVM lifts image accuracy from 0.824 to 0.876 — five points
-free, just by not defaulting to one model.</p>
-<p><strong>Fusion barely helps — and the error overlap explains why.</strong> Early fusion
-(0.829) sits <em>below</em> image-only (0.876): concatenating 300-d text and 200-d image
-features gives the classifier one big vector of unequal scale and density, so the
-weaker dimensions dilute the stronger ones. Late and weighted fusion do edge
-ahead (0.881) — but by half a point, one product out of 210. Stacking does worse
-(0.867).</p>
-<p>The reason is structural, not a tuning failure: text and image are <strong>both right
-on 160/210 products and both wrong on 16</strong>. Only <strong>34/210 (16%)</strong> are cases where
-exactly one modality is right — the only cases fusion can fix. With so little
-disagreement to exploit, no fusion scheme can gain much. On this dataset, images
-already carry nearly all the signal; the way up is a <em>better image model</em>, not
-cleverer fusion.</p>
-<p><img alt="error overlap" src="../docs/figures/error_overlap.png"/></p>
+<h2 id="5-%C2%B7-Interpretation-&amp;-conclusion">5 · Interpretation &amp; conclusion<a class="anchor-link" href="#5-%C2%B7-Interpretation-&amp;-conclusion">¶</a></h2><p><strong>The sweep matters.</strong> SVM is the best image classifier (0.857 ± 0.022), clearly
+ahead of LogReg and RF — worth the sweep rather than defaulting to one model.</p>
+<p><strong>Late fusion now gives a real, if modest, lift.</strong> Under repeated 5-fold CV over
+5 seeds, late fusion reaches <strong>0.889 ± 0.021</strong> versus <strong>0.857 ± 0.022</strong> for image
+alone — about <strong>+3 points</strong>, and it shows up consistently across folds and seeds.
+But the error bars <strong>overlap</strong>, so this is a steady, modest gain, not a knockout.
+The three late variants land on the same number: average, weighted and stacking
+are all <strong>0.889</strong> (±0.021 / ±0.019 / ±0.017) — tied. <strong>Early fusion does worse</strong>
+(0.842 ± 0.025 &lt; 0.857): concatenating 300-d text and 200-d image features into
+one unequal-scale vector dilutes the stronger image dimensions.</p>
+<p>The reason the ceiling is low is structural, not a tuning failure. On a reference
+fold (n=210) text and image are <strong>both right on 168 and both wrong on 17</strong>. Only
+the disagreement cases — <strong>14 text-only-right + 11 image-only-right ≈ 12%
+recoverable</strong> — are what any fusion scheme can hope to fix. With so little
+disagreement to exploit, no fusion can gain much. On this dataset the image model
+already carries nearly all the signal; the way up is a <em>better image model</em>, not
+cleverer fusion.
+<img alt="error overlap" src="../docs/figures/error_overlap.png"/></p>
 </div>
 </div>
 </div>

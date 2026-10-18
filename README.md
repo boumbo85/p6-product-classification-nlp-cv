@@ -22,24 +22,28 @@
 ### The 30-second summary — one question, three eras
 
 Built in 2023, revisited in 2026. Same question, same 1,050 products, same 7
-balanced categories — three regimes, each with *its own* right metric:
+balanced categories. Every number below is a **mean ± std over 5 seeds**
+(5-fold CV for the supervised rows) — no single lucky split.
 
 | Era · regime | Method | Metric | Score | What it shows |
 |---|---|---|:--:|---|
-| **2023 · unsupervised** | Word2Vec (text) / VGG16 (image) | ARI | 0.475 / 0.460 | how much category signal each source carries, no labels |
-| **2023 · supervised** | VGG16+SVM / late fusion | Accuracy · macro-F1 | 0.876 / 0.881 | how well we can actually classify, with labels |
-| **2026 · revisit (CLIP)** | CLIP zero-shot, one shared space | *both* (below) | ARI 0.674 · Acc 0.716 | what newer tech buys — measured two ways |
+| **2023 · unsupervised** | Word2Vec / VGG16 | ARI | 0.18 / 0.49 | category signal per source, no labels |
+| **2023 · supervised** | Word2Vec+VGG16, late fusion | Accuracy | 0.89 | how well we classify, with labels |
+| **2026 · CLIP zero-shot** | CLIP, one shared space, no training | Accuracy | 0.72 | what you get with zero labels |
+| **2026 · CLIP supervised** | CLIP embeddings + a trained head | Accuracy | **0.95** | the real upgrade — same supervision, better features |
 
 **How to read this — and what you may NOT compare.** Accuracy and ARI are
-different metrics on different regimes; putting "0.475 (2023)" next to "0.716
-(2026)" would be meaningless. Below, every comparison is **like-for-like**:
+different metrics on different regimes; "0.18 (ARI)" next to "0.95 (accuracy)"
+would be meaningless. Every comparison below is **like-for-like**:
 
-- **Did the tech improve on *my 2023 method*?** → compare **ARI to ARI**, same
-  unsupervised protocol. CLIP embeddings: **text 0.475 → 0.631, image 0.460 →
-  0.590** (+0.13 to +0.16). A clean, honest gain.
-- **Does zero-shot replace a trained model?** → compare **accuracy to accuracy**.
-  CLIP zero-shot 0.716 vs the *trained* 2023 pipeline 0.881. No — but it reaches
-  72% with **no training and no labels**.
+- **Did CLIP improve on my 2023 method, unsupervised?** → **ARI vs ARI**, same
+  PCA-clustering protocol. Text **0.18 → 0.47**, image **0.49 → 0.54**. CLIP's
+  shared-space text embedding is the big jump.
+- **Did CLIP improve it, supervised?** → **accuracy vs accuracy**, same 5-fold
+  CV. Trained head: **0.89 (Word2Vec+VGG16) → 0.95 (CLIP)**. Same supervision,
+  better features — exactly the 2025 literature's finding.
+- **Can zero-shot replace a trained model?** CLIP zero-shot 0.72 vs trained 0.95.
+  No — but 72% with **no labels at all** changes the cost of a cold start.
 
 ![Revisiting 2026 — same protocol, same metric (ARI)](docs/figures/ari_2023_vs_clip.png)
 
@@ -55,21 +59,28 @@ signal each data source actually carries.
 
 ### Approach — an honest, unsupervised benchmark
 
-Rather than jump to a supervised model, I treated it as a **feasibility study**.
-The same protocol is applied to every feature set, so the numbers are directly
-comparable:
+Rather than jump to a supervised model, I treated it as a **feasibility study**:
+extract features from each modality, cluster into 7 groups, and score the
+clusters against the true categories with the **Adjusted Rand Index** (0 =
+random, 1 = perfect). No labels build the features — they only score them.
+
+**One rigour fix vs 2023.** The original study clustered on a *t-SNE* projection.
+t-SNE is built for *visualisation*: it's stochastic and distorts global
+distances, so clustering on it flatters the score. The honest protocol clusters
+in **PCA space** (distance-preserving) and keeps t-SNE for the pictures only:
 
 ```
-features → PCA (denoise) → t-SNE (2D) → K-Means (k=7) → Adjusted Rand Index
+reference metric : features → standardize → PCA → K-Means (k=7) → ARI   (5 seeds, mean ± std)
+figures only     : features → t-SNE (2D)                                  (visualisation)
 ```
 
-The **Adjusted Rand Index (ARI)** scores how well the 7 unsupervised clusters
-match the 7 true categories (0 = random, 1 = perfect). No labels are used to
-build the features — only to score them.
+### Results — the relative ranking (t-SNE, 2023)
 
-### Results
+This benchmark of 8 feature methods used the 2023 t-SNE protocol. The **absolute
+values are inflated by t-SNE** (see the note below); keep it for the *ranking*,
+which still holds — learned embeddings beat hand-crafted ones.
 
-| Modality | Method | ARI |
+| Modality | Method | ARI (t-SNE, 2023) |
 |---|---|:--:|
 | Text | CountVectorizer (bag-of-words) | 0.333 |
 | Text | TF-IDF | 0.240 |
@@ -80,29 +91,28 @@ build the features — only to score them.
 | Image | SIFT (bag-of-visual-words) | 0.053 |
 | **Image** | **CNN — VGG16 transfer learning** | **0.460** 🏆 |
 
-![ARI benchmark across the 8 methods](docs/figures/ari_benchmark.png)
+![ARI benchmark across the 8 methods (t-SNE protocol)](docs/figures/ari_benchmark.png)
 
-> **Why these differ from my 2023 slides (USE 0.49, VGG16 0.47).** Back then I
-> didn't fix the random seeds, so the numbers moved every run — and the "best"
-> text model flipped between runs. With seeds fixed, the stable winner is
-> **Word2Vec at 0.475**, not USE. The old 0.49 wasn't better, it was lucky and
-> unreproducible. I'll take a number I can reproduce over one I can't.
+> **t-SNE inflated the scores — the reproducible PCA numbers are lower.**
+> Re-run with clustering in **PCA space** (5 seeds, mean ± std), the two winners
+> drop to **Word2Vec ARI 0.18 ± 0.00 (text)** and **VGG16 ARI 0.49 ± 0.01
+> (image)**. Text falls hard (0.475 → 0.18): t-SNE had been separating text
+> clusters it couldn't really separate. Image barely moves (0.46 → 0.49). This
+> is the honest baseline the CLIP comparison below uses.
 
-The best image model, VGG16, is worth a closer look. Clustering alone gives
-ARI 0.460; once the clusters are optimally matched to the true categories
-(Hungarian assignment), that is a **66% accuracy** — on 7 classes, from images
-only, with no supervision. The confusion matrix shows the model confuses exactly
-the categories a human would: *Home Furnishing* leaks into *Baby Care* and
-*Home Decor* (visually similar textiles and decor), while *Watches* is near-perfect
-(138/150).
+![ARI in PCA space — the honest baseline](docs/figures/ari_phase1.png)
 
-![VGG16 confusion matrix](docs/figures/cnn_confusion_matrix.png)
+> **Why these also differ from my 2023 slides (USE 0.49, VGG16 0.47).** Back then
+> seeds weren't fixed, so numbers moved every run and the "best" text model
+> flipped between runs. Fixed seeds + PCA clustering = stable, reproducible. I'll
+> take a number I can reproduce over one I can't.
 
 ### What the numbers say
 
-- **Feasibility: yes.** The best text (0.475) and image (0.460) methods both
-  recover categories well above chance — with zero manual labelling.
-- **Simpler beat heavier on this data.** Word2Vec outscored BERT (0.18–0.29).
+- **Feasibility: yes**, but mostly from images. In honest PCA space, image
+  (0.49) carries far more category signal than text (0.18) — the opposite of
+  what t-SNE suggested.
+- **Simpler beat heavier on this data.** Word2Vec outscored frozen BERT.
   Product descriptions are keyword bags, not sentences, so BERT's contextual
   strength goes unused when frozen. *Match the model to the data, not to the hype.*
 - **Transfer learning is the unlock for images.** VGG16 (0.460) vs SIFT (0.053) —
@@ -112,70 +122,70 @@ the categories a human would: *Home Furnishing* leaks into *Baby Care* and
 
 ### Phase 2 — supervised classification & fusion
 
-Phase 1 answers *"is the signal there?"*. Phase 2 answers *"how well can we
-actually classify?"* — supervised classifiers (Logistic Regression / SVM /
-Random Forest), fixed seed, stratified 80/20 split, best model kept per modality,
-then two fusion strategies compared.
+Phase 1 asks *"is the signal there?"*. Phase 2 asks *"how well can we classify?"*
+— a sweep (LogReg / SVM / Random Forest), best model kept per modality, then four
+fusion strategies. Evaluated with **repeated stratified 5-fold CV over 5 seeds**,
+so every number is a **mean ± std**, not one lucky split.
 
-> **On the choice of metric.** The 7 classes are perfectly balanced (150 products
-> each), so accuracy is *not* misleading here and tracks macro-F1 closely. I
-> still report **macro-F1 as the reference metric**: it is the right senior
-> reflex, and it surfaces a weak class that plain accuracy would hide.
+> **On the choice of metric.** The 7 classes are perfectly balanced (150 each),
+> so accuracy is *not* misleading here and tracks macro-F1 closely. I still
+> report **macro-F1 as the reference metric**: the right senior reflex, and it
+> surfaces a weak class that plain accuracy would hide.
 
-**Two ways to fuse text and image — they are not the same bet:**
+**Two ways to fuse text and image — not the same bet:**
 
 - **Early fusion** glues the two feature vectors end to end (concat), then one
-  model classifies the whole thing. The catch: text and image features live on
-  different scales and densities, so the weak dimensions dilute the strong ones.
-  Measured here at **0.829 — below image alone**. Concatenation is not fusion.
-- **Late fusion** keeps one classifier per modality and combines their *outputs*
-  (at the decision level). Simplest version: average the predicted probabilities.
-  Smarter version: let a small model learn how to combine them — that is what the
-  *stacking* row does (a meta-classifier on the two models' probabilities).
+  model classifies. The catch: the two live on different scales and densities, so
+  weak dimensions dilute strong ones — it lands *below* image-only.
+- **Late fusion** keeps one classifier per modality and combines their *outputs*.
+  Simplest: average the probabilities. Smarter: let a small model learn the
+  combination (*stacking* = a meta-classifier on the two models' probabilities).
 
 | Features | Classifier | Accuracy | Macro-F1 |
 |---|---|:--:|:--:|
-| Text — Word2Vec | LogReg | 0.814 | 0.809 |
-| **Image — VGG16** | **SVM** | **0.876** | **0.874** |
-| Early fusion (concat features) | LogReg | 0.829 | 0.825 |
-| Late fusion (avg of probabilities) | — | 0.881 | 0.876 |
-| Weighted fusion (w_text = 0.50) | — | 0.881 | 0.876 |
-| Stacking (meta-LogReg on OOF proba) | — | 0.867 | 0.864 |
+| Text — Word2Vec | LogReg | 0.846 ± 0.022 | 0.843 ± 0.024 |
+| Image — VGG16 | SVM | 0.857 ± 0.022 | 0.855 ± 0.022 |
+| Early fusion (concat) | LogReg | 0.842 ± 0.025 | 0.841 ± 0.025 |
+| **Late fusion (avg proba)** | — | **0.889 ± 0.021** | **0.887 ± 0.021** |
+| Weighted fusion | — | 0.889 ± 0.019 | 0.887 ± 0.020 |
+| Stacking (meta-LogReg) | — | 0.889 ± 0.017 | 0.887 ± 0.018 |
 
 ![Supervised accuracy — single modality vs fusion strategies](docs/figures/supervised_accuracy.png)
 
-Four results worth stating plainly — including the one that undercuts the easy
-headline:
+What the numbers say, error bars included:
 
-- **The model sweep pays off.** On images, SVM (0.876) beats Logistic Regression
-  (0.824) by 5 points — a reminder not to settle for one classifier.
-- **Early fusion hurts relative to the best single modality.** Concatenating
-  300-dim text and 200-dim image features hands the classifier 500 dimensions of
-  unequal scale and density, dragging accuracy down to 0.829 — *below* image-only
-  (0.876). *Fusion is a modelling decision, not an `np.hstack`.*
-- **Fusion barely moves the needle — and I won't pretend otherwise.** The best
-  fusion (late / weighted, 0.881) edges image-only (0.876) by **half a point —
-  one product out of 210**. Stacking actually does *worse* (0.867). On this
-  dataset, images already carry most of the signal; adding text buys almost
-  nothing.
-- **Why so little? The error-overlap analysis answers it.** Text and image are
-  both right on 160/210 products and both wrong on 16. Only **34/210 (16%)** are
-  cases where exactly one modality is right — the only cases fusion can possibly
-  fix. With so little disagreement to exploit, no fusion scheme can gain much.
-  This is the honest ceiling, not a tuning failure. See
-  [notebook 02](notebooks/02_supervised_fusion.ipynb).
+- **The model sweep pays off.** SVM beats LogReg on images by several points — no
+  settling for one classifier.
+- **Early fusion hurts.** Concatenating 300-d text and 200-d image features
+  (0.842) lands *below* image-only (0.857). *Fusion is a modelling decision, not
+  an `np.hstack`.*
+- **Late fusion is the real gain, but read the error bars.** It reaches **0.889 ±
+  0.02** vs image-only **0.857 ± 0.02** — about +3 points, and the bands partly
+  overlap, so I state it as a *modest, consistent* gain, not a blowout. The three
+  late-style fusions (avg / weighted / stacking) all land at 0.889: once you
+  combine at the decision level, the exact recipe barely matters.
+- **Why not more? Error overlap.** On the reference fold, text and image are both
+  right on 168/210 and both wrong on 17. Only **~12%** are cases where exactly
+  one modality is right — the only ones fusion can fix. That caps the gain; it's
+  structural, not a tuning failure. See [notebook 02](notebooks/02_supervised_fusion.ipynb).
 
 ![Why fusion gains little — error overlap between text and image](docs/figures/error_overlap.png)
 
-> **Reproducibility note.** The original 2023 study reported slightly different
-> ARI values between the slides and the notebook (e.g. USE ≈ 0.49 vs 0.42)
-> because random seeds were not fixed. Everything here is **re-run with
-> `seed=42` fixed across Word2Vec, PCA, t-SNE, K-Means and the train/test
-> split**. One subtlety found while re-running: Word2Vec is only deterministic
-> with `workers=1` — with several workers the training order varies and every
-> downstream metric drifts ~1 point between runs, even with the seed set. The
-> phase-2 numbers above come from the single-worker, fully reproducible run
-> ([`results_supervised.json`](results_supervised.json)).
+> **Is averaging probabilities even legitimate?** Late fusion averages the two
+> models' probabilities — which only makes sense if they're calibrated. Checked:
+> **ECE 0.05 for the image model (well calibrated), 0.11 for text (less so).**
+> So the image votes are trustworthy, text slightly over-confident — a reason the
+> learned stacking doesn't beat a plain average here.
+
+![Calibration — are the probabilities trustworthy?](docs/figures/calibration.png)
+
+> **Reproducibility note.** Everything is re-run with **5 fixed seeds** and
+> reported as mean ± std; clustering happens in PCA space and supervised scores
+> come from repeated 5-fold CV. One subtlety: Word2Vec is only deterministic with
+> `workers=1` — with several workers the training order varies and metrics drift
+> ~1 point between runs, seed or no seed. All numbers live in
+> [`results_supervised.json`](results_supervised.json) and
+> [`results_clip_zeroshot.json`](results_clip_zeroshot.json).
 
 ### The 2026 angle — CLIP zero-shot, actually run
 
@@ -187,45 +197,58 @@ early-vs-late fusion problem disappears — and you can classify **zero-shot**, 
 embedding the category *names* and taking the nearest one. No training, no
 labels, three lines.
 
-| Approach | Training | Accuracy | Macro-F1 |
+**(a) Zero-shot — no training at all.** Embed the category *names*, embed each
+product, assign the nearest. Three lines, zero labels.
+
+| CLIP zero-shot | Training | Accuracy | Macro-F1 |
 |---|:--:|:--:|:--:|
-| CLIP zero-shot — text only | none | 0.635 | 0.636 |
-| CLIP zero-shot — image only | none | 0.691 | 0.673 |
-| **CLIP zero-shot — image + text** | **none** | **0.716** | **0.708** |
-| *Supervised 2023 — VGG16 + SVM* | *trained* | *0.876* | *0.874* |
-| *Supervised 2023 — late fusion* | *trained* | *0.881* | *0.876* |
+| Text only | none | 0.635 | 0.636 |
+| Image only | none | 0.691 | 0.673 |
+| **Image + text** | **none** | **0.722** | **0.713** |
 
-![CLIP zero-shot vs the supervised 2023 pipeline](docs/figures/clip_zeroshot.png)
+![CLIP zero-shot vs the supervised pipeline](docs/figures/clip_zeroshot.png)
 
-**The honest read:** zero-shot CLIP reaches **72%** on 7 classes **without a
-single labelled example** — and ~16 points behind the *trained* 2023 pipeline
-(88%). So CLIP does not beat a supervised model here; what it buys is **no
-training, no labelled data, and multimodal fusion for free** (a mean in the
-shared space). For a cold-start catalogue with no labels, 72% out of the box is a
-very different cost/benefit than collecting a training set. See
-[notebook 03](notebooks/03_modern_2026_approach.ipynb) and
-[`src/run_clip_zeroshot.py`](src/run_clip_zeroshot.py).
+Zero-shot reaches **72% on 7 classes with no labelled example**. It doesn't beat
+a trained model — but for a cold-start catalogue, 72% out of the box changes the
+cost of collecting a training set.
 
-**Like-for-like with 2023 — the comparison that is actually fair.** Accuracy vs
-ARI across regimes would be apples to oranges. So I re-scored CLIP on the **exact
-2023 unsupervised protocol** (features → PCA → t-SNE → K-Means k=7 → ARI,
-`random_state=6`), nothing else changed:
+**(b) Supervised head on CLIP — the apples-to-apples upgrade.** Zero-shot vs the
+2023 pipeline changes two things at once (encoder *and* supervision). To isolate
+"are CLIP features better *at equal supervision*?", I trained the **same kind of
+head, same 5-fold CV** on CLIP embeddings:
 
-| Unsupervised regime (ARI) | 2023 | 2026 — CLIP |
+| Supervised, same CV protocol | Accuracy | Macro-F1 |
 |---|:--:|:--:|
-| Text | Word2Vec 0.475 | **0.631** |
-| Image | VGG16 0.460 | **0.590** |
-| Text + image (shared space) | *n/a in 2023* | **0.674** |
+| 2023 — Word2Vec + VGG16, late fusion | 0.889 ± 0.021 | 0.887 ± 0.021 |
+| CLIP image | 0.900 ± 0.016 | 0.899 ± 0.017 |
+| CLIP text | 0.952 ± 0.017 | 0.952 ± 0.018 |
+| **CLIP image + text** | **0.953 ± 0.018** | **0.953 ± 0.018** |
 
-Same metric, same pipeline, same data: CLIP embeddings lift ARI by **+0.16 (text)
-and +0.13 (image)**. *This* is what revisiting with 2026 tech buys on my own
-method — a real, measurable gain, not a metric swap. And fusion (0.674) is now a
-plain average in one shared space, where 2023 needed the whole early-vs-late
-study.
+Same supervision, better features: **0.889 → 0.953** (+6 points). CLIP *text*
+alone (0.952) already beats the best 2023 fusion. This is the clean result — and
+it matches the 2025 literature, which finds CLIP + a late-fusion head the winner
+on this exact task.
 
-**A real limitation, stated plainly:** CLIP's text encoder is capped at **77
-tokens**; Flipkart descriptions run up to ~700, so the text side is truncated and
-loses information — part of why text-only zero-shot (0.635) trails image-only.
+**Like-for-like, unsupervised (ARI, PCA protocol, mean ± std):**
+
+| Unsupervised (ARI) | 2023 | 2026 — CLIP |
+|---|:--:|:--:|
+| Text | Word2Vec 0.18 | **0.47 ± 0.02** |
+| Image | VGG16 0.49 | **0.54 ± 0.02** |
+| Text + image (shared space) | *n/a in 2023* | **0.68 ± 0.03** |
+
+The text jump (0.18 → 0.47) is the headline: CLIP's shared space finally makes
+product text carry real category signal.
+
+**Two honest negatives, reported not hidden:**
+
+- **CLIP's text encoder caps at 77 tokens** (Flipkart descriptions reach ~700).
+  I tried **chunk-and-pool** (encode 77-token chunks, average them) to recover
+  the tail — it **didn't help** (0.635 → 0.631 zero-shot). The category signal
+  sits in the first tokens; the tail is mostly noise here. A negative result is
+  still a result.
+- **Zero-shot ≠ supervised.** 0.72 vs 0.95 — the gap is the price of using no
+  labels.
 
 What I'd **keep** from 2023: the fair shared protocol, fixed seeds, a held-out
 test set, and reporting negative results honestly. Modern models change the
@@ -254,8 +277,8 @@ p6-product-classification-nlp-cv/
 │   ├── 02_supervised_fusion.ipynb                   # phase 2 — supervised + fusion
 │   └── 03_modern_2026_approach.ipynb                # phase 3 — CLIP zero-shot (2026)
 ├── src/
-│   ├── run_supervised.py                       # phase-2 pipeline (seed=42, workers=1)
-│   └── run_clip_zeroshot.py                    # phase-3 CLIP zero-shot pipeline
+│   ├── run_supervised.py                       # phase 1 (ARI/PCA) + phase 2 (5-fold CV, calibration)
+│   └── run_clip_zeroshot.py                    # phase 3 — CLIP zero-shot + supervised head
 ├── data/
 │   └── README.md                               # how to fetch the dataset (not versioned)
 └── docs/
@@ -291,34 +314,46 @@ accuracy with diverse training data, early fusion generalises better to unseen
 platforms. See [References](#references). *(Paper summary rephrased for
 licensing compliance.)*
 
-### 🔎 Critical review — what I'd do better
+### 🏭 What I'd ship in production (2026)
 
-- **Word2Vec isn't fully deterministic even seeded.** I had to force `workers=1`
-  to stop metrics drifting ~1 point between runs. Honest fix, but it hides that
-  the real variance should be reported as a mean ± std over several seeds, not a
-  single number. That's the rigorous version.
-- **ARI through t-SNE is fragile.** Clustering on a 2D t-SNE projection is pretty
-  but t-SNE is stochastic and distorts global distances. A cleaner protocol would
-  cluster in the original (or PCA) space and report t-SNE for *visualisation only*.
-- **CLIP text truncated at 77 tokens.** Flipkart descriptions reach ~700 tokens,
-  so the text side loses information — part of why text-only zero-shot trails.
-  I took the easy truncation instead of chunk-and-pool.
-- **Single train/test split.** Fine for a feasibility study, but a 5-fold CV
-  would give confidence intervals instead of point estimates.
-- **No calibration check.** Late fusion averages probabilities as if both models
-  were calibrated. They may not be — a reliability check would make the fusion
-  argument airtight.
+This repo is a feasibility study. A production categoriser for a real catalogue
+would look like this — and most of it is a short step from what's here:
+
+- **CLIP embeddings as the backbone + a trained head.** Already the winner here
+  (0.95) and in the 2025 literature. No more two separate encoders.
+- **Cold start with no labels → cluster-then-label.** Cluster the CLIP
+  embeddings (UMAP + HDBSCAN, as the 2025 paper does for category *discovery*),
+  have a human validate the clusters, then switch to the supervised head once
+  labels exist. Zero-shot (0.72) covers day one.
+- **Hierarchical categories.** Real catalogues are trees (Clothing > Shoes >
+  Sneakers), not 7 flat classes. A hierarchical head with consistency masking
+  keeps parent/child predictions coherent.
+- **Two-stage serving for cost.** A light text-only model clears the easy 90%;
+  the heavier multimodal model only runs on the ambiguous cases. Accuracy where
+  it matters, cheap everywhere else.
+
+### 🔎 Critical review — what's still imperfect
+
+- **t-SNE still used for the 8-method ranking.** The reference metric now
+  clusters in PCA space (honest), but the phase-1 ranking table is still the 2023
+  t-SNE run. For strict rigour I'd re-run all 8 methods in PCA — I re-ran only the
+  two winners (Word2Vec, VGG16).
+- **KMeans assumes convex clusters.** If I doubted linear separability I'd use
+  **spectral clustering or HDBSCAN**, not t-SNE-then-KMeans (which cheats). UMAP
+  for the non-linear reduction, kept out of the metric.
+- **Frozen features.** Word2Vec/VGG16/CLIP are all used frozen. End-to-end
+  fine-tuning is the untested path to more.
+- **Single dataset, 1,050 products.** Small and clean. The real test is scale and
+  messier catalogues.
 
 ### 🔜 To-do next
 
-- Report **mean ± std over 5 seeds** for every metric (kills the reproducibility
-  caveat above).
-- **Fine-tune** a text and a vision backbone end-to-end — likeliest path past the
-  ~0.88 image ceiling.
-- **CLIP late-fusion MLP head** (as in the 2025 paper) instead of a plain
-  probability average, and lift the 77-token cap (chunk-and-pool).
-- **5-fold CV + calibration** (reliability diagrams) for honest confidence.
-- Scale beyond 1,050 products to confirm the ceiling holds.
+- **CLIP + a late-fusion MLP head** (as in the 2025 paper) instead of a plain
+  average — likely the last few points.
+- **Fine-tune** a backbone end-to-end rather than freezing it.
+- **Hierarchical classification** on the full `product_category_tree`.
+- Re-run the full 8-method ARI benchmark in PCA space for a fully consistent
+  phase 1.
 
 ### References
 
@@ -336,25 +371,31 @@ licensing compliance.)*
 ### Le résumé en 30 secondes — une question, trois époques
 
 Construit en 2023, revisité en 2026. Même question, mêmes 1 050 produits, mêmes 7
-catégories équilibrées — trois régimes, chacun avec *sa* bonne métrique :
+catégories équilibrées. Chaque chiffre ci-dessous est une **moyenne ± écart-type
+sur 5 seeds** (validation croisée 5-fold pour le supervisé) — pas un split
+chanceux unique.
 
 | Époque · régime | Méthode | Métrique | Score | Ce que ça montre |
 |---|---|---|:--:|---|
-| **2023 · non supervisé** | Word2Vec (texte) / VGG16 (image) | ARI | 0,475 / 0,460 | le signal « catégorie » que porte chaque source, sans labels |
-| **2023 · supervisé** | VGG16+SVM / late fusion | Accuracy · macro-F1 | 0,876 / 0,881 | à quel point on sait classer, avec labels |
-| **2026 · revisite (CLIP)** | CLIP zero-shot, un espace partagé | *les deux* (ci-dessous) | ARI 0,674 · Acc 0,716 | ce qu'apporte la techno récente — mesuré deux fois |
+| **2023 · non supervisé** | Word2Vec / VGG16 | ARI | 0,18 / 0,49 | signal « catégorie » par source, sans labels |
+| **2023 · supervisé** | Word2Vec+VGG16, late fusion | Accuracy | 0,89 | à quel point on sait classer, avec labels |
+| **2026 · CLIP zero-shot** | CLIP, espace partagé, sans entraînement | Accuracy | 0,72 | ce qu'on obtient avec zéro label |
+| **2026 · CLIP supervisé** | embeddings CLIP + tête entraînée | Accuracy | **0,95** | le vrai gain — même supervision, meilleures features |
 
 **Comment lire — et ce qu'on ne peut PAS comparer.** Accuracy et ARI sont des
 métriques différentes sur des régimes différents ; mettre « 0,475 (2023) » à côté
 de « 0,716 (2026) » n'aurait aucun sens. Ci-dessous, chaque comparaison est **à
 régime égal** :
 
-- **La techno a-t-elle amélioré *ma méthode de 2023* ?** → comparer **ARI vs
-  ARI**, même protocole non supervisé. Embeddings CLIP : **texte 0,475 → 0,631,
-  image 0,460 → 0,590** (+0,13 à +0,16). Un gain propre et honnête.
-- **Le zero-shot remplace-t-il un modèle entraîné ?** → comparer **accuracy vs
-  accuracy**. CLIP zero-shot 0,716 vs le pipeline 2023 *entraîné* 0,881. Non —
-  mais il atteint 72 % **sans entraînement ni labels**.
+- **CLIP a-t-il amélioré ma méthode de 2023, non supervisé ?** → **ARI vs ARI**,
+  même protocole de clustering en PCA. Texte **0,18 → 0,47**, image **0,49 →
+  0,54**. L'embedding texte dans l'espace partagé de CLIP, c'est le gros saut.
+- **CLIP a-t-il amélioré, supervisé ?** → **accuracy vs accuracy**, même CV
+  5-fold. Tête entraînée : **0,89 (Word2Vec+VGG16) → 0,95 (CLIP)**. Même
+  supervision, meilleures features — exactement le constat de la littérature 2025.
+- **Le zero-shot remplace-t-il un modèle entraîné ?** CLIP zero-shot 0,72 vs
+  entraîné 0,95. Non — mais 72 % **sans aucun label** change le coût d'un
+  démarrage à froid.
 
 ![Revisite 2026 — même protocole, même métrique (ARI)](docs/figures/ari_2023_vs_clip.png)
 
@@ -370,21 +411,29 @@ en mesurant la quantité de signal « catégorie » que porte chaque source.
 
 ### Démarche — un benchmark non supervisé, honnête
 
-Plutôt que de foncer sur un modèle supervisé, j'ai traité le sujet comme une
-**étude de faisabilité**. Le même protocole est appliqué à chaque jeu de
-features, pour que les chiffres soient directement comparables :
+Étude de faisabilité : extraire des features par modalité, les clusteriser en 7
+groupes, et noter les clusters contre les vraies catégories avec l'**Adjusted
+Rand Index** (0 = aléatoire, 1 = parfait). Aucun label ne construit les
+features — ils ne servent qu'à noter.
+
+**Une correction de rigueur vs 2023.** L'étude d'origine clusterisait sur une
+projection *t-SNE*. Or t-SNE est fait pour la *visualisation* : stochastique et
+déformant les distances globales, il flatte le score. Le protocole honnête
+clusterise en **espace PCA** (qui préserve les distances) et garde t-SNE pour les
+images seulement :
 
 ```
-features → PCA (débruitage) → t-SNE (2D) → K-Means (k=7) → Adjusted Rand Index
+métrique de référence : features → standardize → PCA → K-Means (k=7) → ARI   (5 seeds, moy ± σ)
+figures seulement      : features → t-SNE (2D)                                 (visualisation)
 ```
 
-L'**Adjusted Rand Index (ARI)** mesure l'accord entre les 7 clusters non
-supervisés et les 7 vraies catégories (0 = aléatoire, 1 = parfait). Aucun label
-ne sert à construire les features — seulement à les évaluer.
+### Résultats — le classement relatif (t-SNE, 2023)
 
-### Résultats
+Ce benchmark de 8 méthodes utilise le protocole t-SNE 2023. Les **valeurs
+absolues sont gonflées par t-SNE** (voir la note) ; on le garde pour le
+*classement*, qui tient toujours — les embeddings appris battent l'artisanal.
 
-| Modalité | Méthode | ARI |
+| Modalité | Méthode | ARI (t-SNE, 2023) |
 |---|---|:--:|
 | Texte | CountVectorizer (sac de mots) | 0,333 |
 | Texte | TF-IDF | 0,240 |
@@ -395,91 +444,84 @@ ne sert à construire les features — seulement à les évaluer.
 | Image | SIFT (sac de mots visuels) | 0,053 |
 | **Image** | **CNN — VGG16 transfer learning** | **0,460** 🏆 |
 
-![Benchmark ARI des 8 méthodes](docs/figures/ari_benchmark.png)
+![Benchmark ARI des 8 méthodes (protocole t-SNE)](docs/figures/ari_benchmark.png)
 
-> **Pourquoi ça diffère de mes slides 2023 (USE 0,49, VGG16 0,47).** À l'époque
-> je ne figeais pas les seeds : les chiffres bougeaient à chaque run, et le
-> « meilleur » modèle texte changeait d'un run à l'autre. Seeds figés, le gagnant
-> stable est **Word2Vec à 0,475**, pas USE. Le vieux 0,49 n'était pas meilleur,
-> il était chanceux et non reproductible. Je préfère un chiffre que je peux
-> refaire à l'identique à un chiffre que je ne peux pas réexpliquer.
+> **t-SNE gonflait les scores — les chiffres PCA reproductibles sont plus bas.**
+> Ré-exécuté avec clustering en **espace PCA** (5 seeds, moy ± σ), les deux
+> gagnants tombent à **Word2Vec ARI 0,18 ± 0,00 (texte)** et **VGG16 ARI 0,49 ±
+> 0,01 (image)**. Le texte chute fort (0,475 → 0,18) : t-SNE séparait des
+> clusters texte qu'il ne séparait pas vraiment. L'image bouge à peine (0,46 →
+> 0,49). C'est la baseline honnête qu'utilise la comparaison CLIP plus bas.
 
-Le meilleur modèle image, VGG16, mérite un zoom. Le clustering seul donne
-ARI 0,460 ; une fois les clusters alignés de façon optimale sur les vraies
-catégories (affectation hongroise), cela correspond à **66% d'accuracy** — sur
-7 classes, à partir des images seules, sans supervision. La matrice de confusion
-montre que le modèle confond exactement les catégories qu'un humain confondrait :
-*Home Furnishing* déborde sur *Baby Care* et *Home Decor* (textiles et déco
-visuellement proches), tandis que *Watches* est quasi parfait (138/150).
+![ARI en espace PCA — la baseline honnête](docs/figures/ari_phase1.png)
 
-![Matrice de confusion VGG16](docs/figures/cnn_confusion_matrix.png)
+> **Pourquoi ça diffère aussi de mes slides 2023 (USE 0,49, VGG16 0,47).** À
+> l'époque les seeds n'étaient pas figés : les chiffres bougeaient et le
+> « meilleur » modèle texte changeait d'un run à l'autre. Seeds figés + clustering
+> PCA = stable et reproductible. Je préfère un chiffre que je peux refaire.
 
 ### Lecture des résultats
 
-- **Faisabilité : oui.** Les meilleures méthodes texte (0,475) et image (0,460)
-  retrouvent les catégories bien au-dessus du hasard — sans aucun étiquetage
-  manuel.
-- **Le simple bat le lourd sur ces données.** Word2Vec dépasse BERT (0,18–0,29).
-  Les descriptions produits sont des sacs de mots-clés, pas des phrases : la force
+- **Faisabilité : oui**, mais surtout grâce à l'image. En espace PCA honnête,
+  l'image (0,49) porte bien plus de signal que le texte (0,18) — l'inverse de ce
+  que suggérait t-SNE.
+- **Le simple bat le lourd sur ces données.** Word2Vec dépasse BERT gelé. Les
+  descriptions produits sont des sacs de mots-clés, pas des phrases : la force
   contextuelle de BERT, utilisé gelé, ne sert à rien. *On choisit le modèle selon
   la donnée, pas selon la mode.*
-- **Le transfer learning débloque l'image.** VGG16 (0,460) vs SIFT (0,053) — un
-  gain d'environ 9×. Les features apprises se transfèrent, pas les features
-  artisanales.
-- **Les deux modalités sont complémentaires** (texte ≈ image) — fusion testée en
-  phase 2 ci-dessous.
+- **Le transfer learning débloque l'image.** VGG16 vs SIFT — les features
+  apprises se transfèrent, pas les features artisanales.
 
 ### Phase 2 — classification supervisée & fusion
 
-La phase 1 répond à *« le signal existe-t-il ? »*. La phase 2 répond à
-*« à quel point sait-on classer ? »* — des classifieurs supervisés (régression
-logistique / SVM / Random Forest), seed figé, split stratifié 80/20, meilleur
-modèle retenu par modalité, puis deux stratégies de fusion comparées.
+La phase 1 demande *« le signal existe-t-il ? »*. La phase 2 : *« à quel point
+sait-on classer ? »* — un balayage (LogReg / SVM / Random Forest), meilleur
+modèle par modalité, puis quatre stratégies de fusion. Évalué en **validation
+croisée 5-fold répétée sur 5 seeds**, donc chaque chiffre est une **moyenne ±
+écart-type**, pas un split chanceux.
 
 > **Sur le choix de la métrique.** Les 7 classes sont parfaitement équilibrées
-> (150 produits chacune), donc l'accuracy n'est *pas* trompeuse ici et colle de
-> près au macro-F1. Je garde malgré tout le **macro-F1 comme métrique de
-> référence** : c'est le bon réflexe de senior, et il révèle une classe faible
-> que l'accuracy seule masquerait.
+> (150 chacune), donc l'accuracy n'est *pas* trompeuse ici et colle au macro-F1.
+> Je garde malgré tout le **macro-F1 comme métrique de référence** : bon réflexe
+> de senior, et il révèle une classe faible que l'accuracy masquerait.
 
-**Deux façons de fusionner texte et image — ce ne sont pas le même pari :**
+**Deux façons de fusionner — pas le même pari :**
 
-- **Early fusion** : on colle les deux vecteurs de features bout à bout (concat),
-  puis un seul modèle classe le tout. Le piège : texte et image sont à des
-  échelles et densités différentes, donc les dimensions faibles diluent les
-  fortes. Mesuré ici à **0,829 — sous l'image seule**. Concaténer n'est pas
-  fusionner.
-- **Late fusion** : un classifieur par modalité, puis on combine leurs *sorties*
-  (au niveau décision). Version simple : moyenner les probabilités. Version plus
-  maligne : laisser un petit modèle apprendre à les combiner — c'est ce que fait
-  la ligne *stacking* (un méta-classifieur sur les probabilités des deux modèles).
+- **Early fusion** : coller les deux vecteurs bout à bout (concat), puis un seul
+  modèle classe. Le piège : échelles et densités différentes, les faibles diluent
+  les fortes — ça finit *sous* l'image seule.
+- **Late fusion** : un classifieur par modalité, puis combiner leurs *sorties*.
+  Simple : moyenner les probabilités. Malin : laisser un petit modèle apprendre
+  la combinaison (*stacking* = méta-classifieur sur les probabilités).
 
 | Features | Classifieur | Accuracy | Macro-F1 |
 |---|---|:--:|:--:|
-| Texte — Word2Vec | LogReg | 0,814 | 0,809 |
-| **Image — VGG16** | **SVM** | **0,876** | **0,874** |
-| Early fusion (concat features) | LogReg | 0,829 | 0,825 |
-| Late fusion (moyenne des probabilités) | — | 0,881 | 0,876 |
-| Weighted fusion (w_texte = 0,50) | — | 0,881 | 0,876 |
-| Stacking (méta-LogReg sur proba OOF) | — | 0,867 | 0,864 |
+| Texte — Word2Vec | LogReg | 0,846 ± 0,022 | 0,843 ± 0,024 |
+| Image — VGG16 | SVM | 0,857 ± 0,022 | 0,855 ± 0,022 |
+| Early fusion (concat) | LogReg | 0,842 ± 0,025 | 0,841 ± 0,025 |
+| **Late fusion (moyenne proba)** | — | **0,889 ± 0,021** | **0,887 ± 0,021** |
+| Weighted fusion | — | 0,889 ± 0,019 | 0,887 ± 0,020 |
+| Stacking (méta-LogReg) | — | 0,889 ± 0,017 | 0,887 ± 0,018 |
 
 ![Accuracy supervisée — modalité seule vs stratégies de fusion](docs/figures/supervised_accuracy.png)
 
-Quatre résultats à énoncer franchement — y compris celui qui casse le titre
-facile :
+Ce que disent les chiffres, barres d'erreur incluses :
 
-- **Le balayage de modèles paie.** Sur l'image, le SVM (0,876) bat la régression
-  logistique (0,824) de 5 points — on ne se contente pas d'un seul classifieur.
-- **L'early fusion fait pire que la meilleure modalité seule.** Concaténer 300
-  dims texte et 200 dims image donne 500 variables d'échelles et densités
-  inégales et fait tomber l'accuracy à 0,829 — *sous* l'image seule (0,876).
-  *Une fusion est un choix de modélisation, pas un `np.hstack`.*
-- **La fusion ne gagne presque rien — et je ne vais pas prétendre le contraire.**
-  La meilleure fusion (late / weighted, 0,881) dépasse l'image seule (0,876) de
-  **un demi-point — un produit sur 210**. Le stacking fait même *moins bien*
-  (0,867). Sur ce jeu, l'image porte déjà l'essentiel du signal ; ajouter le
-  texte n'apporte quasiment rien.
-- **Pourquoi si peu ? L'analyse d'overlap d'erreurs le dit.** Texte et image ont
+- **Le balayage de modèles paie.** Le SVM bat la LogReg sur l'image de plusieurs
+  points — on ne se contente pas d'un seul classifieur.
+- **L'early fusion fait pire.** Concaténer 300 dims texte et 200 dims image
+  (0,842) tombe *sous* l'image seule (0,857). *Une fusion est un choix de
+  modélisation, pas un `np.hstack`.*
+- **La late fusion est le vrai gain, mais lis les barres d'erreur.** Elle atteint
+  **0,889 ± 0,02** vs image seule **0,857 ± 0,02** — environ +3 points, et les
+  bandes se chevauchent en partie : je l'énonce comme un gain *modeste et
+  régulier*, pas un KO. Les trois variantes late (moyenne / weighted / stacking)
+  finissent toutes à 0,889 : une fois la combinaison faite au niveau décision, la
+  recette exacte importe peu.
+- **Pourquoi pas plus ? L'overlap d'erreurs.** Sur le fold de référence, texte et
+  image ont tous deux raison sur 168/210 et tort sur 17. Seuls **~12 %** sont des
+  cas où une seule modalité a raison — les seuls que la fusion peut corriger. Ça
+  plafonne le gain ; c'est structurel. Voir [notebook 02](notebooks/02_supervised_fusion.ipynb).
   tous deux raison sur 160/210 produits, tous deux tort sur 16. Seuls
   **34/210 (16 %)** sont des cas où une seule modalité a raison — les seuls que
   la fusion peut corriger. Avec si peu de désaccord à exploiter, aucune fusion ne
@@ -488,68 +530,74 @@ facile :
 
 ![Pourquoi la fusion gagne peu — overlap d'erreurs texte vs image](docs/figures/error_overlap.png)
 
-> **Note de reproductibilité.** L'étude originale de 2023 affichait des valeurs
-> d'ARI différentes entre les slides et le notebook (ex. USE ≈ 0,49 vs 0,42)
-> car les seeds n'étaient pas figés. Tout ici est **ré-exécuté avec `seed=42`
-> figé** (Word2Vec, PCA, t-SNE, K-Means, split train/test). Subtilité trouvée au
-> ré-run : Word2Vec n'est déterministe qu'avec `workers=1` — à plusieurs workers
-> l'ordre d'entraînement varie et chaque métrique aval bouge d'environ 1 point
-> d'un run à l'autre, seed pourtant figé. Les chiffres de la phase 2 ci-dessus
-> viennent du run mono-worker, entièrement reproductible
-> ([`results_supervised.json`](results_supervised.json)).
+> **Moyenner les probabilités, est-ce légitime ?** La late fusion moyenne les
+> probabilités des deux modèles — ce qui n'a de sens que s'ils sont calibrés.
+> Vérifié : **ECE 0,05 pour l'image (bien calibré), 0,11 pour le texte (moins).**
+> Les votes image sont fiables, le texte un peu trop sûr de lui — une raison pour
+> laquelle le stacking appris ne bat pas une simple moyenne ici.
 
-### L'angle 2026 — CLIP zero-shot, vraiment exécuté
+![Calibration — les probabilités sont-elles fiables ?](docs/figures/calibration.png)
 
-Le projet date de 2023 ; le domaine a beaucoup bougé. Plutôt qu'une note de
-conception, j'ai **exécuté** l'approche moderne sur les mêmes 1 050 produits et
-je l'ai mesurée.
+> **Note de reproductibilité.** Tout est ré-exécuté avec **5 seeds figés** et
+> reporté en moyenne ± écart-type ; le clustering se fait en espace PCA et le
+> supervisé en CV 5-fold répétée. Subtilité : Word2Vec n'est déterministe qu'avec
+> `workers=1`. Tous les chiffres sont dans
+> [`results_supervised.json`](results_supervised.json) et
+> [`results_clip_zeroshot.json`](results_clip_zeroshot.json).
 
-L'idée : **CLIP** place texte et image dans *un seul* espace vectoriel partagé,
-donc tout le problème early-vs-late fusion disparaît — et on peut classer en
-**zero-shot**, en encodant les *noms* de catégories et en prenant le plus proche.
-Sans entraînement, sans labels, en trois lignes.
+### L'angle 2026 — CLIP, vraiment exécuté
 
-| Approche | Entraînement | Accuracy | Macro-F1 |
+**(a) Zero-shot — sans aucun entraînement.** Encoder les *noms* de catégories,
+encoder chaque produit, prendre le plus proche. Trois lignes, zéro label.
+
+| CLIP zero-shot | Entraînement | Accuracy | Macro-F1 |
 |---|:--:|:--:|:--:|
-| CLIP zero-shot — texte seul | aucun | 0,635 | 0,636 |
-| CLIP zero-shot — image seule | aucun | 0,691 | 0,673 |
-| **CLIP zero-shot — image + texte** | **aucun** | **0,716** | **0,708** |
-| *Supervisé 2023 — VGG16 + SVM* | *entraîné* | *0,876* | *0,874* |
-| *Supervisé 2023 — late fusion* | *entraîné* | *0,881* | *0,876* |
+| Texte seul | aucun | 0,635 | 0,636 |
+| Image seule | aucun | 0,691 | 0,673 |
+| **Image + texte** | **aucun** | **0,722** | **0,713** |
 
-![CLIP zero-shot vs le pipeline supervisé 2023](docs/figures/clip_zeroshot.png)
+![CLIP zero-shot vs le pipeline supervisé](docs/figures/clip_zeroshot.png)
 
-**Lecture honnête :** le zero-shot CLIP atteint **72 %** sur 7 classes **sans un
-seul exemple étiqueté** — mais reste ~16 points derrière le pipeline 2023
-*entraîné* (88 %). Donc CLIP ne bat pas un modèle supervisé ici ; ce qu'il
-apporte, c'est **zéro entraînement, zéro donnée étiquetée, et la fusion
-multimodale gratuite** (une moyenne dans l'espace partagé). Pour un catalogue en
-démarrage à froid sans labels, 72 % immédiats changent radicalement le rapport
-coût/bénéfice face à la collecte d'un jeu d'entraînement. Voir
-[notebook 03](notebooks/03_modern_2026_approach.ipynb) et
-[`src/run_clip_zeroshot.py`](src/run_clip_zeroshot.py).
+Le zero-shot atteint **72 % sur 7 classes sans un seul exemple étiqueté**. Il ne
+bat pas un modèle entraîné — mais pour un catalogue en démarrage à froid, 72 %
+immédiats changent le coût de la collecte d'un jeu d'entraînement.
 
-**À régime égal avec 2023 — la comparaison réellement juste.** Accuracy vs ARI
-entre régimes serait comparer des choux et des carottes. J'ai donc ré-évalué CLIP
-sur le **protocole non supervisé exact de 2023** (features → PCA → t-SNE →
-K-Means k=7 → ARI, `random_state=6`), rien d'autre changé :
+**(b) Tête supervisée sur CLIP — le vrai test à régime égal.** Le zero-shot vs le
+pipeline 2023 change deux choses à la fois (encodeur *et* supervision). Pour
+isoler « les features CLIP sont-elles meilleures *à supervision égale* ? », j'ai
+entraîné la **même tête, même CV 5-fold** sur les embeddings CLIP :
 
-| Régime non supervisé (ARI) | 2023 | 2026 — CLIP |
+| Supervisé, même protocole CV | Accuracy | Macro-F1 |
 |---|:--:|:--:|
-| Texte | Word2Vec 0,475 | **0,631** |
-| Image | VGG16 0,460 | **0,590** |
-| Texte + image (espace partagé) | *inexistant en 2023* | **0,674** |
+| 2023 — Word2Vec + VGG16, late fusion | 0,889 ± 0,021 | 0,887 ± 0,021 |
+| CLIP image | 0,900 ± 0,016 | 0,899 ± 0,017 |
+| CLIP texte | 0,952 ± 0,017 | 0,952 ± 0,018 |
+| **CLIP image + texte** | **0,953 ± 0,018** | **0,953 ± 0,018** |
 
-Même métrique, même pipeline, mêmes données : les embeddings CLIP gagnent
-**+0,16 (texte) et +0,13 (image)** d'ARI. *Voilà* ce qu'apporte la revisite avec
-la techno 2026 sur ma propre méthode — un gain réel et mesurable, pas un
-changement de métrique. Et la fusion (0,674) n'est plus qu'une moyenne dans un
-espace partagé, là où 2023 nécessitait toute l'étude early-vs-late.
+Même supervision, meilleures features : **0,889 → 0,953** (+6 points). Le *texte*
+CLIP seul (0,952) bat déjà la meilleure fusion 2023. C'est le résultat propre — et
+il colle à la littérature 2025, qui trouve CLIP + tête de late fusion gagnant sur
+ce problème exact.
 
-**Une vraie limite, dite franchement :** l'encodeur texte de CLIP est plafonné à
-**77 tokens** ; les descriptions Flipkart montent à ~700, donc le côté texte est
-tronqué et perd de l'information — en partie pourquoi le zero-shot texte seul
-(0,635) est le plus faible.
+**À régime égal, non supervisé (ARI, protocole PCA, moy ± σ) :**
+
+| Non supervisé (ARI) | 2023 | 2026 — CLIP |
+|---|:--:|:--:|
+| Texte | Word2Vec 0,18 | **0,47 ± 0,02** |
+| Image | VGG16 0,49 | **0,54 ± 0,02** |
+| Texte + image (espace partagé) | *inexistant en 2023* | **0,68 ± 0,03** |
+
+Le saut texte (0,18 → 0,47) est le titre : l'espace partagé de CLIP fait enfin
+porter du vrai signal catégorie au texte produit.
+
+**Deux résultats négatifs, reportés et non cachés :**
+
+- **L'encodeur texte de CLIP plafonne à 77 tokens** (les descriptions Flipkart
+  montent à ~700). J'ai testé le **chunk-and-pool** (encoder des morceaux de 77
+  tokens, les moyenner) pour récupérer la queue — ça **n'a pas aidé** (0,635 →
+  0,631 en zero-shot). Le signal catégorie est dans les premiers tokens ; la
+  queue est surtout du bruit ici. Un résultat négatif reste un résultat.
+- **Zero-shot ≠ supervisé.** 0,72 vs 0,95 — l'écart est le prix du « sans label ».
 
 Ce que je **garde** de 2023 : le protocole partagé équitable, les seeds figés, un
 jeu de test tenu à part, et l'honnêteté sur les résultats négatifs. Les modèles
@@ -592,36 +640,45 @@ d'entraînement variées, l'early fusion généralise mieux à des plateformes
 inconnues. Voir [Références](#références). *(Résumé de l'article reformulé pour
 conformité aux licences.)*
 
-### 🔎 Retour critique — ce que j'aurais pu mieux faire
+### 🏭 Ce que je mettrais en production (2026)
 
-- **Word2Vec n'est pas vraiment déterministe, même seedé.** J'ai dû forcer
-  `workers=1` pour stopper la dérive de ~1 point entre runs. Correctif honnête,
-  mais la vraie rigueur serait de reporter une **moyenne ± écart-type sur
-  plusieurs seeds**, pas un chiffre unique.
-- **L'ARI via t-SNE est fragile.** Clusteriser sur une projection t-SNE 2D est
-  joli, mais t-SNE est stochastique et déforme les distances globales. Plus
-  propre : clusteriser dans l'espace d'origine (ou PCA), et garder t-SNE pour la
-  *visualisation* seulement.
-- **Texte CLIP tronqué à 77 tokens.** Les descriptions Flipkart montent à ~700,
-  le texte perd de l'info — en partie pourquoi le zero-shot texte seul est en
-  retrait. J'ai pris la troncature facile plutôt qu'un chunk-and-pool.
-- **Un seul split train/test.** OK pour une étude de faisabilité, mais une
-  validation croisée 5-fold donnerait des intervalles de confiance.
-- **Pas de vérif de calibration.** La late fusion moyenne les probabilités comme
-  si les deux modèles étaient calibrés. Un diagramme de fiabilité rendrait
-  l'argument fusion imparable.
+Ce repo est une étude de faisabilité. Un classifieur de production pour un vrai
+catalogue ressemblerait à ça — et la plupart est à un pas de ce qui existe ici :
+
+- **Embeddings CLIP comme socle + une tête entraînée.** Déjà le gagnant ici
+  (0,95) et dans la littérature 2025. Fini les deux encodeurs séparés.
+- **Démarrage à froid sans labels → cluster-then-label.** Clusteriser les
+  embeddings CLIP (UMAP + HDBSCAN, comme le papier 2025 pour la *découverte* de
+  catégories), faire valider les clusters par un humain, puis basculer sur la tête
+  supervisée dès qu'il y a des labels. Le zero-shot (0,72) couvre le jour 1.
+- **Catégories hiérarchiques.** Un vrai catalogue est un arbre (Vêtements >
+  Chaussures > Baskets), pas 7 classes à plat. Une tête hiérarchique avec masquage
+  de cohérence garde les prédictions parent/enfant cohérentes.
+- **Service en deux étages pour le coût.** Un modèle texte léger traite les 90 %
+  faciles ; le gros modèle multimodal ne tourne que sur les cas ambigus.
+
+### 🔎 Retour critique — ce qui reste imparfait
+
+- **t-SNE sert encore au classement des 8 méthodes.** La métrique de référence
+  clusterise désormais en PCA (honnête), mais le tableau de classement phase 1
+  reste le run t-SNE 2023. Pour une rigueur stricte je ré-exécuterais les 8
+  méthodes en PCA — je n'ai re-runné que les deux gagnants (Word2Vec, VGG16).
+- **KMeans suppose des clusters convexes.** Si je doutais de la séparabilité
+  linéaire, j'utiliserais **spectral clustering ou HDBSCAN**, pas t-SNE-puis-KMeans
+  (qui triche). UMAP pour la réduction non-linéaire, hors de la métrique.
+- **Features gelées.** Word2Vec/VGG16/CLIP sont tous gelés. Le fine-tuning de bout
+  en bout est la piste non testée pour aller plus loin.
+- **Un seul jeu, 1 050 produits.** Petit et propre. Le vrai test, c'est l'échelle
+  et des catalogues plus sales.
 
 ### 🔜 To-do next
 
-- Reporter **moyenne ± écart-type sur 5 seeds** pour chaque métrique (règle le
-  point reproductibilité ci-dessus).
-- **Fine-tuner** un backbone texte et un backbone vision de bout en bout — voie
-  la plus probable au-delà du plafond ~0,88 de l'image.
-- **Tête de late fusion MLP CLIP** (comme l'article 2025) au lieu d'une simple
-  moyenne de probabilités, et lever le plafond 77 tokens (chunk-and-pool).
-- **5-fold CV + calibration** (diagrammes de fiabilité) pour une confiance
-  honnête.
-- Passer à l'échelle au-delà de 1 050 produits pour confirmer le plafond.
+- **CLIP + tête de late fusion MLP** (comme l'article 2025) au lieu d'une simple
+  moyenne — probablement les derniers points.
+- **Fine-tuner** un backbone de bout en bout plutôt que gelé.
+- **Classification hiérarchique** sur le `product_category_tree` complet.
+- Ré-exécuter le benchmark ARI complet (8 méthodes) en espace PCA pour une
+  phase 1 totalement cohérente.
 
 ### Références
 
