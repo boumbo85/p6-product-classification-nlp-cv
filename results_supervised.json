@@ -12,8 +12,8 @@
   ],
   "metrics": {
     "text": {
-      "accuracy": 0.8095,
-      "macro_f1": 0.8073
+      "accuracy": 0.8143,
+      "macro_f1": 0.8086
     },
     "image": {
       "accuracy": 0.8762,
@@ -25,11 +25,27 @@
     },
     "fusion_late": {
       "accuracy": 0.881,
-      "macro_f1": 0.8769
+      "macro_f1": 0.876
+    },
+    "fusion_weighted": {
+      "accuracy": 0.881,
+      "macro_f1": 0.876
+    },
+    "fusion_stacking": {
+      "accuracy": 0.8667,
+      "macro_f1": 0.864
     },
     "best_classifier": {
       "text": "LogReg",
       "image": "SVM"
     }
+  },
+  "error_overlap": {
+    "both_right": 160,
+    "both_wrong": 16,
+    "only_text_right": 11,
+    "only_image_right": 23,
+    "recoverable_pct": 0.1619,
+    "best_text_weight": 0.5
   }
 }

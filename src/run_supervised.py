@@ -64,8 +64,12 @@ def clean(doc):
     return [stem.stem(w) for w in t]
 
 df["tokens"] = df["description"].apply(clean)
+# workers=1 is REQUIRED for reproducibility: with several workers gensim's
+# training order is non-deterministic, so the Word2Vec vectors (and every
+# downstream metric) shift by ~1 point between runs even with a fixed seed.
+# One worker is slightly slower on 1,050 short docs but makes the run exact.
 w2v = Word2Vec(sentences=df["tokens"].tolist(), vector_size=300, window=5,
-               min_count=2, workers=4, seed=SEED)
+               min_count=2, workers=1, seed=SEED)
 
 def docvec(tokens):
     v = [w2v.wv[t] for t in tokens if t in w2v.wv]
@@ -183,35 +187,82 @@ acc_late = accuracy_score(y_te, pred_late)
 f1_late = f1_score(y_te, pred_late, average="macro")
 print(f"   {'fusion-LATE (avg proba)':34} acc={acc_late:.3f}  macroF1={f1_late:.3f}")
 
+# 4d · WEIGHTED late fusion — tune the text/image weight on the TRAIN set only
+# (cross-val out-of-fold probabilities), then apply the best weight on test.
+from sklearn.model_selection import cross_val_predict
+oof_text = cross_val_predict(clone(CLASSIFIERS[best["text"][0]]),  Xtr_text, y_tr, cv=5, method="predict_proba")
+oof_img  = cross_val_predict(clone(CLASSIFIERS[best["image"][0]]), Xtr_img,  y_tr, cv=5, method="predict_proba")
+best_w, best_w_acc = 0.5, -1
+for w in np.linspace(0, 1, 21):          # w = weight on text
+    acc_w = accuracy_score(y_tr, (w * oof_text + (1 - w) * oof_img).argmax(1))
+    if acc_w > best_w_acc:
+        best_w_acc, best_w = acc_w, w
+pred_wt = (best_w * p_text + (1 - best_w) * p_img).argmax(1)
+acc_wt = accuracy_score(y_te, pred_wt)
+f1_wt = f1_score(y_te, pred_wt, average="macro")
+print(f"   {'fusion-WEIGHTED (w_text=%.2f)' % best_w:34} acc={acc_wt:.3f}  macroF1={f1_wt:.3f}")
+
+# 4e · STACKING — a meta Logistic Regression on the two models' OOF probabilities
+X_meta_tr = np.hstack([oof_text, oof_img])
+X_meta_te = np.hstack([p_text, p_img])
+meta = LogisticRegression(max_iter=2000, random_state=SEED).fit(X_meta_tr, y_tr)
+pred_stack = meta.predict(X_meta_te)
+acc_stack = accuracy_score(y_te, pred_stack)
+f1_stack = f1_score(y_te, pred_stack, average="macro")
+print(f"   {'fusion-STACKING (meta-LogReg)':34} acc={acc_stack:.3f}  macroF1={f1_stack:.3f}")
+
+# 4f · Why is the fusion gain small? Decorrelated-error analysis.
+pt = p_text.argmax(1); pi = p_img.argmax(1)
+text_ok, img_ok = (pt == y_te), (pi == y_te)
+both_wrong = int(np.sum(~text_ok & ~img_ok))
+only_text  = int(np.sum(text_ok & ~img_ok))   # text rescues image
+only_img   = int(np.sum(~text_ok & img_ok))   # image rescues text
+both_right = int(np.sum(text_ok & img_ok))
+n_te = len(y_te)
+# recoverable = cases where exactly one modality is right (fusion *could* fix)
+recoverable = only_text + only_img
+print(f"   -- error overlap (test n={n_te}): both_right={both_right} "
+      f"both_wrong={both_wrong} only_text_right={only_text} only_img_right={only_img}")
+print(f"   -- recoverable by fusion: {recoverable}/{n_te} = {recoverable/n_te:.1%} "
+      f"| unrecoverable (both wrong): {both_wrong/n_te:.1%}")
+
 res = {
-    "text":        (best["text"][1],  best["text"][2],  best["text"][3]),
-    "image":       (best["image"][1], best["image"][2], best["image"][3]),
-    "fusion_early":(acc_cat,  f1_cat,  pred_cat),
-    "fusion_late": (acc_late, f1_late, pred_late),
+    "text":          (best["text"][1],  best["text"][2],  best["text"][3]),
+    "image":         (best["image"][1], best["image"][2], best["image"][3]),
+    "fusion_early":  (acc_cat,   f1_cat,   pred_cat),
+    "fusion_late":   (acc_late,  f1_late,  pred_late),
+    "fusion_weighted":(acc_wt,   f1_wt,    pred_wt),
+    "fusion_stacking":(acc_stack,f1_stack, pred_stack),
 }
+error_overlap = {"both_right": both_right, "both_wrong": both_wrong,
+                 "only_text_right": only_text, "only_image_right": only_img,
+                 "recoverable_pct": round(recoverable / n_te, 4),
+                 "best_text_weight": round(float(best_w), 3)}
 
 # ── Save metrics ─────────────────────────────────────────────────────
 metrics = {k: {"accuracy": round(v[0], 4), "macro_f1": round(v[1], 4)}
            for k, v in res.items()}
 metrics["best_classifier"] = {"text": best["text"][0], "image": best["image"][0]}
 os.makedirs(OUT_DIR, exist_ok=True)
-json.dump({"seed": SEED, "n": len(df), "categories": cats, "metrics": metrics},
-          open("results_supervised.json", "w"), indent=2)
-print("\nSaved results_supervised.json")
+json_path = os.environ.get("P6_JSON", "results_supervised.json")
+json.dump({"seed": SEED, "n": len(df), "categories": cats,
+           "metrics": metrics, "error_overlap": error_overlap},
+          open(json_path, "w"), indent=2)
+print(f"\nSaved {json_path}")
 
 # ── Figures ──────────────────────────────────────────────────────────
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-labels = ["Text\n(Word2Vec)", "Image\n(VGG16)",
-          "Early fusion\n(concat)", "Late fusion\n(avg proba)"]
-keys = ["text", "image", "fusion_early", "fusion_late"]
+labels = ["Text\n(Word2Vec)", "Image\n(VGG16)", "Early fusion\n(concat)",
+          "Late fusion\n(avg)", "Weighted\nfusion", "Stacking\n(meta-LR)"]
+keys = ["text", "image", "fusion_early", "fusion_late", "fusion_weighted", "fusion_stacking"]
 accs = [res[k][0] for k in keys]
 f1s = [res[k][1] for k in keys]
-colors_acc = ["#60a5fa", "#a78bfa", "#f59e0b", "#10b981"]
-x = np.arange(4); w = 0.38
-fig, ax = plt.subplots(figsize=(9, 5))
+colors_acc = ["#60a5fa", "#a78bfa", "#f59e0b", "#10b981", "#14b8a6", "#059669"]
+x = np.arange(len(keys)); w = 0.38
+fig, ax = plt.subplots(figsize=(11, 5))
 b1 = ax.bar(x - w/2, accs, w, label="Accuracy", color=colors_acc)
 b2 = ax.bar(x + w/2, f1s, w, label="Macro-F1", color=colors_acc, alpha=0.5)
 for bars in (b1, b2):
@@ -230,8 +281,12 @@ plt.tight_layout(); plt.savefig(os.path.join(OUT_DIR, "supervised_accuracy.png")
 plt.close()
 print("wrote supervised_accuracy.png")
 
-# Late-fusion confusion matrix (the winning model)
-y_true_cm, pred = y_te, res["fusion_late"][2]
+# Confusion matrix of the BEST fusion model
+fusion_keys = ["fusion_late", "fusion_weighted", "fusion_stacking"]
+best_fusion = max(fusion_keys, key=lambda k: res[k][0])
+y_true_cm, pred = y_te, res[best_fusion][2]
+pretty = {"fusion_late": "Late fusion", "fusion_weighted": "Weighted fusion",
+          "fusion_stacking": "Stacking"}[best_fusion]
 cm = confusion_matrix(y_true_cm, pred)
 fig, ax = plt.subplots(figsize=(7.5, 6))
 im = ax.imshow(cm, cmap="Blues")
@@ -239,8 +294,8 @@ ax.set_xticks(range(7)); ax.set_yticks(range(7))
 short = [c[:18] for c in cats]
 ax.set_xticklabels(short, rotation=45, ha="right"); ax.set_yticklabels(short)
 ax.set_xlabel("Predicted"); ax.set_ylabel("True")
-ax.set_title(f"Late-fusion classifier — confusion matrix (test set)\n"
-             f"accuracy {res['fusion_late'][0]:.0%}", fontweight="bold", fontsize=12)
+ax.set_title(f"{pretty} — confusion matrix (test set)\n"
+             f"accuracy {res[best_fusion][0]:.0%}", fontweight="bold", fontsize=12)
 for i in range(7):
     for j in range(7):
         ax.text(j, i, cm[i, j], ha="center", va="center",
@@ -249,4 +304,31 @@ plt.colorbar(im, fraction=0.046, pad=0.04)
 plt.tight_layout(); plt.savefig(os.path.join(OUT_DIR, "fusion_confusion_matrix.png"), dpi=130, bbox_inches="tight")
 plt.close()
 print("wrote fusion_confusion_matrix.png")
+
+# Error-overlap figure — WHY the fusion gain is small
+fig, ax = plt.subplots(figsize=(7, 4.5))
+seg = [both_right, only_text, only_img, both_wrong]
+seg_lbl = ["Both right", "Only text right\n(text rescues image)",
+           "Only image right\n(image rescues text)", "Both wrong\n(unrecoverable)"]
+seg_col = ["#10b981", "#60a5fa", "#a78bfa", "#ef4444"]
+left = 0
+for v, l, c in zip(seg, seg_lbl, seg_col):
+    ax.barh(0, v, left=left, color=c, edgecolor="white")
+    if v > 0:
+        ax.text(left + v/2, 0, f"{v}\n({v/n_te:.0%})", ha="center", va="center",
+                fontsize=9, fontweight="bold", color="white")
+    left += v
+ax.set_yticks([]); ax.set_xlim(0, n_te)
+ax.set_xlabel(f"Test products (n={n_te})")
+ax.set_title("Why fusion gains little: where text & image agree vs disagree\n"
+             f"only {recoverable/n_te:.0%} of cases are 'recoverable' by fusion; "
+             f"{both_wrong/n_te:.0%} are wrong in both modalities",
+             fontweight="bold", fontsize=11)
+ax.legend([plt.Rectangle((0,0),1,1,color=c) for c in seg_col],
+          ["Both right", "Only text right", "Only image right", "Both wrong"],
+          loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=4, fontsize=8)
+ax.spines[["top", "right", "left"]].set_visible(False)
+plt.tight_layout(); plt.savefig(os.path.join(OUT_DIR, "error_overlap.png"), dpi=130, bbox_inches="tight")
+plt.close()
+print("wrote error_overlap.png")
 print("\nDONE.")
