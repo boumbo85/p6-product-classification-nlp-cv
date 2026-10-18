@@ -26,6 +26,15 @@
       "macro_f1": 0.7081
     }
   },
+  "ari_same_2023_protocol": {
+    "clip_text": 0.6308,
+    "clip_image": 0.5904,
+    "clip_fused": 0.6744,
+    "reference_2023": {
+      "text_word2vec": 0.475,
+      "image_vgg16": 0.46
+    }
+  },
   "supervised_reference": {
     "image_VGG16_SVM": {
       "accuracy": 0.8762,

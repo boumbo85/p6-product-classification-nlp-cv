@@ -7796,7 +7796,7 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=80dfceae">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=268d16f1">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7816,7 +7816,7 @@ labelling then become cosine-similarity lookups.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=1ab20cc7">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ceb3e3a5">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7829,7 +7829,7 @@ K-Means + manual Hungarian alignment; here it is a dot product.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=e1d219e4">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=bce1d9c4">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7860,7 +7860,7 @@ K-Means + manual Hungarian alignment; here it is a dot product.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=27b5f8a6">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=d5f0fd9c">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7876,7 +7876,7 @@ CLIP zero-shot · image + text   acc=0.716  macroF1=0.708   &lt;- best zero-shot
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=73fc6344">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=67de9208">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7918,7 +7918,82 @@ labelling a training set — that is the real 2026 argument, not "CLIP wins".</p
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=dd9c9c41">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ba1bcd15">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="2-bis-%C2%B7-The-only-fair-2023-vs-2026-comparison-(same-metric:-ARI)">2-bis · The only fair 2023-vs-2026 comparison (same metric: ARI)<a class="anchor-link" href="#2-bis-%C2%B7-The-only-fair-2023-vs-2026-comparison-(same-metric:-ARI)">¶</a></h2><p>Accuracy (here) and ARI (2023 phase 1) are different metrics on different
+regimes — comparing them directly would be dishonest. So CLIP is re-scored on the
+<strong>exact 2023 unsupervised protocol</strong>: <code>features → PCA → t-SNE → K-Means(k=7) → ARI</code>, with <code>random_state=6</code>. Nothing else changes — only the encoder.</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=e426e613">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-python"><pre><span></span><span class="c1"># same evaluate() as notebook 01 (random_state=6), applied to CLIP embeddings</span>
+<span class="c1"># ari_text  = ari_2023_protocol(txt_emb)</span>
+<span class="c1"># ari_image = ari_2023_protocol(img_emb)</span>
+<span class="c1"># ari_fused = ari_2023_protocol(fused)       # text+image in one shared space</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"""   ARI · CLIP text          = 0.631   (2023 Word2Vec = 0.475)</span>
+<span class="s2">   ARI · CLIP image         = 0.590   (2023 VGG16    = 0.460)</span>
+<span class="s2">   ARI · CLIP text+image    = 0.674   (no 2023 equivalent)"""</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=301f1c6c">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h3 id="Like-for-like-result">Like-for-like result<a class="anchor-link" href="#Like-for-like-result">¶</a></h3><table>
+<thead>
+<tr>
+<th>Unsupervised regime (ARI)</th>
+<th style="text-align:center">2023</th>
+<th style="text-align:center">2026 — CLIP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Text</td>
+<td style="text-align:center">Word2Vec 0.475</td>
+<td style="text-align:center"><strong>0.631</strong></td>
+</tr>
+<tr>
+<td>Image</td>
+<td style="text-align:center">VGG16 0.460</td>
+<td style="text-align:center"><strong>0.590</strong></td>
+</tr>
+<tr>
+<td>Text + image (shared space)</td>
+<td style="text-align:center"><em>n/a in 2023</em></td>
+<td style="text-align:center"><strong>0.674</strong></td>
+</tr>
+</tbody>
+</table>
+<p><img alt="2023 vs CLIP at equal metric" src="../docs/figures/ari_2023_vs_clip.png"/></p>
+<p>Same metric, same pipeline, same data: CLIP lifts ARI by <strong>+0.16 (text)</strong> and
+<strong>+0.13 (image)</strong>. That is the honest measure of what revisiting with 2026 tech
+buys — on <em>my own</em> 2023 method, not a metric swap. The fusion row (0.674) is a
+plain mean in one shared space; in 2023 that required the whole early-vs-late
+fusion study (notebook 02).</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=0f1d9c5d">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7932,7 +8007,7 @@ why text-only zero-shot (0.635) is the weakest of the three. Lifting this
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a08557ad">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=3a3952b3">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>

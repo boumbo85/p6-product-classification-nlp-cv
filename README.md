@@ -19,6 +19,32 @@
 
 ## 🇬🇧 English
 
+### The 30-second summary — one question, three eras
+
+Built in 2023, revisited in 2026. Same question, same 1,050 products, same 7
+balanced categories — three regimes, each with *its own* right metric:
+
+| Era · regime | Method | Metric | Score | What it shows |
+|---|---|---|:--:|---|
+| **2023 · unsupervised** | Word2Vec (text) / VGG16 (image) | ARI | 0.475 / 0.460 | how much category signal each source carries, no labels |
+| **2023 · supervised** | VGG16+SVM / late fusion | Accuracy · macro-F1 | 0.876 / 0.881 | how well we can actually classify, with labels |
+| **2026 · revisit (CLIP)** | CLIP zero-shot, one shared space | *both* (below) | ARI 0.674 · Acc 0.716 | what newer tech buys — measured two ways |
+
+**How to read this — and what you may NOT compare.** Accuracy and ARI are
+different metrics on different regimes; putting "0.475 (2023)" next to "0.716
+(2026)" would be meaningless. Below, every comparison is **like-for-like**:
+
+- **Did the tech improve on *my 2023 method*?** → compare **ARI to ARI**, same
+  unsupervised protocol. CLIP embeddings: **text 0.475 → 0.631, image 0.460 →
+  0.590** (+0.13 to +0.16). A clean, honest gain.
+- **Does zero-shot replace a trained model?** → compare **accuracy to accuracy**.
+  CLIP zero-shot 0.716 vs the *trained* 2023 pipeline 0.881. No — but it reaches
+  72% with **no training and no labels**.
+
+![Revisiting 2026 — same protocol, same metric (ARI)](docs/figures/ari_2023_vs_clip.png)
+
+---
+
 ### The question
 
 An e-commerce marketplace lists products that sellers categorise by hand —
@@ -150,14 +176,30 @@ labels, three lines.
 ![CLIP zero-shot vs the supervised 2023 pipeline](docs/figures/clip_zeroshot.png)
 
 **The honest read:** zero-shot CLIP reaches **72%** on 7 classes **without a
-single labelled example** — five points short of `1/7` chance becoming ~69%
-alone, and ~16 points behind the *trained* 2023 pipeline (88%). So CLIP does not
-beat a supervised model here; what it buys is **no training, no labelled data,
-and multimodal fusion for free** (a mean in the shared space). For a cold-start
-catalogue with no labels, 72% out of the box is a very different cost/benefit
-than collecting a training set. See
+single labelled example** — and ~16 points behind the *trained* 2023 pipeline
+(88%). So CLIP does not beat a supervised model here; what it buys is **no
+training, no labelled data, and multimodal fusion for free** (a mean in the
+shared space). For a cold-start catalogue with no labels, 72% out of the box is a
+very different cost/benefit than collecting a training set. See
 [notebook 03](notebooks/03_modern_2026_approach.ipynb) and
 [`src/run_clip_zeroshot.py`](src/run_clip_zeroshot.py).
+
+**Like-for-like with 2023 — the comparison that is actually fair.** Accuracy vs
+ARI across regimes would be apples to oranges. So I re-scored CLIP on the **exact
+2023 unsupervised protocol** (features → PCA → t-SNE → K-Means k=7 → ARI,
+`random_state=6`), nothing else changed:
+
+| Unsupervised regime (ARI) | 2023 | 2026 — CLIP |
+|---|:--:|:--:|
+| Text | Word2Vec 0.475 | **0.631** |
+| Image | VGG16 0.460 | **0.590** |
+| Text + image (shared space) | *n/a in 2023* | **0.674** |
+
+Same metric, same pipeline, same data: CLIP embeddings lift ARI by **+0.16 (text)
+and +0.13 (image)**. *This* is what revisiting with 2026 tech buys on my own
+method — a real, measurable gain, not a metric swap. And fusion (0.674) is now a
+plain average in one shared space, where 2023 needed the whole early-vs-late
+study.
 
 **A real limitation, stated plainly:** CLIP's text encoder is capped at **77
 tokens**; Flipkart descriptions run up to ~700, so the text side is truncated and
@@ -231,6 +273,33 @@ jupyter lab notebooks/01_product_classification_text_image.ipynb
 ---
 
 ## 🇫🇷 Version française
+
+### Le résumé en 30 secondes — une question, trois époques
+
+Construit en 2023, revisité en 2026. Même question, mêmes 1 050 produits, mêmes 7
+catégories équilibrées — trois régimes, chacun avec *sa* bonne métrique :
+
+| Époque · régime | Méthode | Métrique | Score | Ce que ça montre |
+|---|---|---|:--:|---|
+| **2023 · non supervisé** | Word2Vec (texte) / VGG16 (image) | ARI | 0,475 / 0,460 | le signal « catégorie » que porte chaque source, sans labels |
+| **2023 · supervisé** | VGG16+SVM / late fusion | Accuracy · macro-F1 | 0,876 / 0,881 | à quel point on sait classer, avec labels |
+| **2026 · revisite (CLIP)** | CLIP zero-shot, un espace partagé | *les deux* (ci-dessous) | ARI 0,674 · Acc 0,716 | ce qu'apporte la techno récente — mesuré deux fois |
+
+**Comment lire — et ce qu'on ne peut PAS comparer.** Accuracy et ARI sont des
+métriques différentes sur des régimes différents ; mettre « 0,475 (2023) » à côté
+de « 0,716 (2026) » n'aurait aucun sens. Ci-dessous, chaque comparaison est **à
+régime égal** :
+
+- **La techno a-t-elle amélioré *ma méthode de 2023* ?** → comparer **ARI vs
+  ARI**, même protocole non supervisé. Embeddings CLIP : **texte 0,475 → 0,631,
+  image 0,460 → 0,590** (+0,13 à +0,16). Un gain propre et honnête.
+- **Le zero-shot remplace-t-il un modèle entraîné ?** → comparer **accuracy vs
+  accuracy**. CLIP zero-shot 0,716 vs le pipeline 2023 *entraîné* 0,881. Non —
+  mais il atteint 72 % **sans entraînement ni labels**.
+
+![Revisite 2026 — même protocole, même métrique (ARI)](docs/figures/ari_2023_vs_clip.png)
+
+---
 
 ### La question
 
@@ -375,6 +444,23 @@ démarrage à froid sans labels, 72 % immédiats changent radicalement le rappor
 coût/bénéfice face à la collecte d'un jeu d'entraînement. Voir
 [notebook 03](notebooks/03_modern_2026_approach.ipynb) et
 [`src/run_clip_zeroshot.py`](src/run_clip_zeroshot.py).
+
+**À régime égal avec 2023 — la comparaison réellement juste.** Accuracy vs ARI
+entre régimes serait comparer des choux et des carottes. J'ai donc ré-évalué CLIP
+sur le **protocole non supervisé exact de 2023** (features → PCA → t-SNE →
+K-Means k=7 → ARI, `random_state=6`), rien d'autre changé :
+
+| Régime non supervisé (ARI) | 2023 | 2026 — CLIP |
+|---|:--:|:--:|
+| Texte | Word2Vec 0,475 | **0,631** |
+| Image | VGG16 0,460 | **0,590** |
+| Texte + image (espace partagé) | *inexistant en 2023* | **0,674** |
+
+Même métrique, même pipeline, mêmes données : les embeddings CLIP gagnent
+**+0,16 (texte) et +0,13 (image)** d'ARI. *Voilà* ce qu'apporte la revisite avec
+la techno 2026 sur ma propre méthode — un gain réel et mesurable, pas un
+changement de métrique. Et la fusion (0,674) n'est plus qu'une moyenne dans un
+espace partagé, là où 2023 nécessitait toute l'étude early-vs-late.
 
 **Une vraie limite, dite franchement :** l'encodeur texte de CLIP est plafonné à
 **77 tokens** ; les descriptions Flipkart montent à ~700, donc le côté texte est

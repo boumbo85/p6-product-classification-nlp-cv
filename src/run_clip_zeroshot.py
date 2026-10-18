@@ -112,11 +112,47 @@ res = {
     "clip_fused": report("CLIP zero-shot · image+text", pred_fuse),
 }
 
+# ── Phase 1-bis: SAME unsupervised protocol as 2023, on CLIP embeddings ───────
+# The ONLY honest way to answer "what does CLIP add vs my 2023 methods" is to
+# score it on the SAME metric (ARI) with the SAME pipeline the 2023 study used:
+#   features -> PCA -> t-SNE(2D) -> K-Means(k=7) -> Adjusted Rand Index
+# Reusing random_state=6 (the 2023 value) so CLIP's ARI is directly comparable
+# to Word2Vec 0.475 (text) and VGG16 0.460 (image). No labels used to cluster —
+# only to score, exactly as before.
+print("6 · Unsupervised ARI on CLIP embeddings — same protocol as 2023")
+from sklearn.manifold import TSNE
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.metrics import adjusted_rand_score
+RANDOM_STATE_2023 = 6
+
+def ari_2023_protocol(features, pca_dim=None):
+    X = np.asarray(features, dtype=float)
+    if pca_dim and X.shape[1] > pca_dim:
+        X = PCA(n_components=pca_dim, random_state=RANDOM_STATE_2023).fit_transform(X)
+    X_tsne = TSNE(n_components=2, perplexity=30,
+                  random_state=RANDOM_STATE_2023, init="pca").fit_transform(X)
+    labels = KMeans(n_clusters=len(cats), n_init=10,
+                    random_state=RANDOM_STATE_2023).fit_predict(X_tsne)
+    return round(adjusted_rand_score(y, labels), 4)
+
+ari = {
+    "clip_text":  ari_2023_protocol(txt_emb),
+    "clip_image": ari_2023_protocol(img_emb),
+    "clip_fused": ari_2023_protocol(fused),
+}
+for k, v in ari.items():
+    print(f"   ARI · {k:18} = {v}")
+
 # ── Compare to the supervised 2023 numbers, if available ─────────────
 sup = None
 sup_path = os.environ.get("P6_JSON", "results_supervised.json")
 if os.path.exists(sup_path):
     sup = json.load(open(sup_path))["metrics"]
+
+# 2023 phase-1 ARI values (from notebook 01, random_state=6) — the apples-to-apples
+# reference for CLIP's unsupervised ARI below.
+ARI_2023 = {"text_word2vec": 0.475, "image_vgg16": 0.460}
 
 out = {
     "model": "clip-ViT-B-32",
@@ -126,6 +162,14 @@ out = {
     "categories": cats,
     "metrics": {k: {"accuracy": round(v[0], 4), "macro_f1": round(v[1], 4)}
                 for k, v in res.items()},
+    # Unsupervised ARI on CLIP embeddings, SAME 2023 protocol (random_state=6):
+    # directly comparable to the 2023 phase-1 ARI numbers.
+    "ari_same_2023_protocol": {
+        "clip_text": ari["clip_text"],
+        "clip_image": ari["clip_image"],
+        "clip_fused": ari["clip_fused"],
+        "reference_2023": ARI_2023,
+    },
 }
 if sup:
     out["supervised_reference"] = {
@@ -199,4 +243,34 @@ plt.tight_layout()
 plt.savefig(os.path.join(OUT_DIR, "clip_zeroshot_confusion.png"), dpi=130, bbox_inches="tight")
 plt.close()
 print("wrote docs/figures/clip_zeroshot_confusion.png")
+
+# ── Figure: apples-to-apples — 2023 best vs CLIP, SAME metric (ARI) ──────────
+# This is the honest "what did revisiting in 2026 buy?" chart: same unsupervised
+# protocol, same ARI metric, 2023 encoders vs CLIP embeddings.
+fig, ax = plt.subplots(figsize=(9, 5))
+groups = ["Text", "Image"]
+vals_2023 = [ARI_2023["text_word2vec"], ARI_2023["image_vgg16"]]
+vals_clip = [ari["clip_text"], ari["clip_image"]]
+xg = np.arange(len(groups)); w = 0.38
+b1 = ax.bar(xg - w/2, vals_2023, w, label="2023 (Word2Vec / VGG16)", color="#a78bfa")
+b2 = ax.bar(xg + w/2, vals_clip, w, label="2026 (CLIP embeddings)", color="#7c3aed")
+# CLIP fused as a reference line (text+image in one space)
+ax.axhline(ari["clip_fused"], ls="--", lw=1.2, color="#d97706",
+           label=f"CLIP fused (text+image) = {ari['clip_fused']}")
+for bars in (b1, b2):
+    for bar in bars:
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.008,
+                f"{bar.get_height():.3f}", ha="center", fontsize=10, fontweight="bold")
+ax.set_xticks(xg); ax.set_xticklabels(groups)
+ax.set_ylabel("Adjusted Rand Index (ARI)")
+ax.set_ylim(0, max(vals_2023 + vals_clip + [ari["clip_fused"]]) * 1.25)
+ax.set_title("Revisiting 2026 — same unsupervised protocol, same metric (ARI)\n"
+             "2023 encoders vs CLIP · clustering k=7 · random_state=6",
+             fontweight="bold", fontsize=12)
+ax.legend(fontsize=8, loc="upper left")
+ax.spines[["top", "right"]].set_visible(False)
+plt.tight_layout()
+plt.savefig(os.path.join(OUT_DIR, "ari_2023_vs_clip.png"), dpi=130, bbox_inches="tight")
+plt.close()
+print("wrote docs/figures/ari_2023_vs_clip.png")
 print("\nDONE.")
