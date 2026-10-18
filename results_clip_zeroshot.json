@@ -1,7 +1,13 @@
 {
   "model": "clip-ViT-B-32",
   "zero_shot": true,
-  "seed": 42,
+  "seeds": [
+    42,
+    7,
+    123,
+    2024,
+    99
+  ],
   "n": 1050,
   "categories": [
     "Baby Care",
@@ -21,28 +27,76 @@
       "accuracy": 0.6352,
       "macro_f1": 0.6357
     },
+    "clip_text_pool": {
+      "accuracy": 0.6314,
+      "macro_f1": 0.6322
+    },
     "clip_fused": {
       "accuracy": 0.7162,
       "macro_f1": 0.7081
+    },
+    "clip_fused_pool": {
+      "accuracy": 0.7219,
+      "macro_f1": 0.7131
     }
   },
-  "ari_same_2023_protocol": {
-    "clip_text": 0.6308,
-    "clip_image": 0.5904,
-    "clip_fused": 0.6744,
+  "ari_pca_same_protocol": {
+    "clip_text": {
+      "mean": 0.468,
+      "std": 0.0153
+    },
+    "clip_image": {
+      "mean": 0.5381,
+      "std": 0.0226
+    },
+    "clip_fused": {
+      "mean": 0.6766,
+      "std": 0.0306
+    },
     "reference_2023": {
-      "text_word2vec": 0.475,
-      "image_vgg16": 0.46
+      "note": "K-Means in PCA space (not t-SNE); mean \u00b1 std over seeds",
+      "text_word2vec": {
+        "mean": 0.1829,
+        "std": 0.0034
+      },
+      "image_vgg16": {
+        "mean": 0.4867,
+        "std": 0.0077
+      }
+    }
+  },
+  "supervised_on_clip": {
+    "clip_text_sup": {
+      "accuracy_mean": 0.9522,
+      "accuracy_std": 0.017,
+      "macro_f1_mean": 0.9515,
+      "macro_f1_std": 0.0175
+    },
+    "clip_image_sup": {
+      "accuracy_mean": 0.9,
+      "accuracy_std": 0.0163,
+      "macro_f1_mean": 0.899,
+      "macro_f1_std": 0.0167
+    },
+    "clip_fused_sup": {
+      "accuracy_mean": 0.9533,
+      "accuracy_std": 0.0175,
+      "macro_f1_mean": 0.9527,
+      "macro_f1_std": 0.0182
     }
   },
   "supervised_reference": {
-    "image_VGG16_SVM": {
-      "accuracy": 0.8762,
-      "macro_f1": 0.8744
+    "image_VGG16": {
+      "accuracy_mean": 0.8566,
+      "accuracy_std": 0.0221,
+      "macro_f1_mean": 0.8551,
+      "macro_f1_std": 0.0221
     },
     "late_fusion": {
-      "accuracy": 0.881,
-      "macro_f1": 0.876
+      "accuracy_mean": 0.8888,
+      "accuracy_std": 0.021,
+      "macro_f1_mean": 0.8866,
+      "macro_f1_std": 0.0213
     }
   }
 }
