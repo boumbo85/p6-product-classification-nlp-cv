@@ -1,12 +1,13 @@
 # Multimodal Product Classification — NLP + Computer Vision
 
 > Can a product's **category** be recovered automatically from its text description and its photo — with no manual labelling?
-> A feasibility study comparing **6 text** and **2 image** feature-extraction methods on 1,050 Flipkart products.
+> A feasibility study comparing **6 text** and **2 image** feature-extraction methods on 1,050 Flipkart products — then supervised fusion, and a **2026 CLIP zero-shot** re-run.
 
 ![Python](https://img.shields.io/badge/Python-3.10-blue)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-orange)
 ![TensorFlow](https://img.shields.io/badge/TensorFlow-VGG16-ff6f00)
 ![NLTK](https://img.shields.io/badge/NLTK-NLP-green)
+![CLIP](https://img.shields.io/badge/CLIP-zero--shot-7c3aed)
 ![status](https://img.shields.io/badge/status-completed-success)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
 
@@ -86,51 +87,85 @@ then two fusion strategies compared.
 
 | Features | Classifier | Accuracy | Macro-F1 |
 |---|---|:--:|:--:|
-| Text — Word2Vec | LogReg | 0.810 | 0.807 |
-| Image — VGG16 | SVM | 0.876 | 0.874 |
+| Text — Word2Vec | LogReg | 0.814 | 0.809 |
+| **Image — VGG16** | **SVM** | **0.876** | **0.874** |
 | Early fusion (concat features) | LogReg | 0.829 | 0.825 |
-| **Late fusion (avg of probabilities)** | — | **0.881** | **0.877** |
+| Late fusion (avg of probabilities) | — | 0.881 | 0.876 |
+| Weighted fusion (w_text = 0.50) | — | 0.881 | 0.876 |
+| Stacking (meta-LogReg on OOF proba) | — | 0.867 | 0.864 |
 
 ![Supervised accuracy — single modality vs fusion strategies](docs/figures/supervised_accuracy.png)
 
-Three results worth stating plainly:
+Four results worth stating plainly — including the one that undercuts the easy
+headline:
 
 - **The model sweep pays off.** On images, SVM (0.876) beats Logistic Regression
   (0.824) by 5 points — a reminder not to settle for one classifier.
-- **Early fusion barely helps (0.829).** Concatenating 300-dim text and 200-dim
-  image features hands the model 500 dimensions of unequal scale and density; the
-  weak ones add noise as fast as signal. *Fusion is a modelling decision, not an
-  `np.hstack`.*
-- **Late fusion wins (0.881).** Averaging the per-class probabilities of the two
-  best single-modality models beats *either* modality alone — the modalities
-  correct each other's errors when combined at the decision level, not the feature
-  level. See [notebook 02](notebooks/02_supervised_fusion.ipynb).
+- **Early fusion hurts relative to the best single modality.** Concatenating
+  300-dim text and 200-dim image features hands the classifier 500 dimensions of
+  unequal scale and density, dragging accuracy down to 0.829 — *below* image-only
+  (0.876). *Fusion is a modelling decision, not an `np.hstack`.*
+- **Fusion barely moves the needle — and I won't pretend otherwise.** The best
+  fusion (late / weighted, 0.881) edges image-only (0.876) by **half a point —
+  one product out of 210**. Stacking actually does *worse* (0.867). On this
+  dataset, images already carry most of the signal; adding text buys almost
+  nothing.
+- **Why so little? The error-overlap analysis answers it.** Text and image are
+  both right on 160/210 products and both wrong on 16. Only **34/210 (16%)** are
+  cases where exactly one modality is right — the only cases fusion can possibly
+  fix. With so little disagreement to exploit, no fusion scheme can gain much.
+  This is the honest ceiling, not a tuning failure. See
+  [notebook 02](notebooks/02_supervised_fusion.ipynb).
+
+![Why fusion gains little — error overlap between text and image](docs/figures/error_overlap.png)
 
 > **Reproducibility note.** The original 2023 study reported slightly different
 > ARI values between the slides and the notebook (e.g. USE ≈ 0.49 vs 0.42)
 > because random seeds were not fixed. Everything here is **re-run with
 > `seed=42` fixed across Word2Vec, PCA, t-SNE, K-Means and the train/test
-> split**, so the numbers are stable and reproducible. The phase-1 ARI table
-> reflects the notebook values.
+> split**. One subtlety found while re-running: Word2Vec is only deterministic
+> with `workers=1` — with several workers the training order varies and every
+> downstream metric drifts ~1 point between runs, even with the seed set. The
+> phase-2 numbers above come from the single-worker, fully reproducible run
+> ([`results_supervised.json`](results_supervised.json)).
 
-### How I'd approach this in 2026
+### The 2026 angle — CLIP zero-shot, actually run
 
-The project is from 2023; the field moved fast. Rather than pretend otherwise,
-[notebook 03](notebooks/03_modern_2026_approach.ipynb) is a design note on what
-I'd change today — and what I'd keep.
+The project is from 2023; the field moved fast. Instead of a design note, I
+**ran** the modern approach on the same 1,050 products and measured it.
 
-| 2023 (this project) | 2026 | Why |
-|---|---|---|
-| Word2Vec / BERT `[CLS]`, frozen | **Sentence-Transformers** (`all-MiniLM`, `bge`) | embeddings built for similarity, not repurposed |
-| VGG16 features | **DINOv2 / modern ViT** | stronger, more transferable visual features |
-| two encoders + late fusion | **CLIP — one shared text+image space** | native multimodal; fusion becomes trivial |
+The idea: **CLIP** puts text and image in *one* shared vector space, so the whole
+early-vs-late fusion problem disappears — and you can classify **zero-shot**, by
+embedding the category *names* and taking the nearest one. No training, no
+labels, three lines.
 
-The real unlock is **CLIP**: text and image land in the *same* vector space, so
-the whole early-vs-late fusion problem disappears — and you get **zero-shot
-classification** (label a product by writing the category name, no training). The
-2023 pipeline stays a valid, dependency-light baseline; what changes is the
-tooling, not the rigour (fair protocol, fixed seeds, honest negatives all carry
-over).
+| Approach | Training | Accuracy | Macro-F1 |
+|---|:--:|:--:|:--:|
+| CLIP zero-shot — text only | none | 0.635 | 0.636 |
+| CLIP zero-shot — image only | none | 0.691 | 0.673 |
+| **CLIP zero-shot — image + text** | **none** | **0.716** | **0.708** |
+| *Supervised 2023 — VGG16 + SVM* | *trained* | *0.876* | *0.874* |
+| *Supervised 2023 — late fusion* | *trained* | *0.881* | *0.876* |
+
+![CLIP zero-shot vs the supervised 2023 pipeline](docs/figures/clip_zeroshot.png)
+
+**The honest read:** zero-shot CLIP reaches **72%** on 7 classes **without a
+single labelled example** — five points short of `1/7` chance becoming ~69%
+alone, and ~16 points behind the *trained* 2023 pipeline (88%). So CLIP does not
+beat a supervised model here; what it buys is **no training, no labelled data,
+and multimodal fusion for free** (a mean in the shared space). For a cold-start
+catalogue with no labels, 72% out of the box is a very different cost/benefit
+than collecting a training set. See
+[notebook 03](notebooks/03_modern_2026_approach.ipynb) and
+[`src/run_clip_zeroshot.py`](src/run_clip_zeroshot.py).
+
+**A real limitation, stated plainly:** CLIP's text encoder is capped at **77
+tokens**; Flipkart descriptions run up to ~700, so the text side is truncated and
+loses information — part of why text-only zero-shot (0.635) trails image-only.
+
+What I'd **keep** from 2023: the fair shared protocol, fixed seeds, a held-out
+test set, and reporting negative results honestly. Modern models change the
+*tools*, not the *rigour*.
 
 ### Tech stack
 
@@ -139,6 +174,7 @@ scikit-learn (CountVectorizer, TF-IDF), gensim (Word2Vec), Hugging Face
 Transformers (BERT), TensorFlow Hub (USE).
 **Computer Vision** — OpenCV (SIFT), TensorFlow / Keras (VGG16 transfer learning).
 **ML & viz** — scikit-learn (PCA, t-SNE, K-Means, ARI), pandas, matplotlib, seaborn.
+**2026 multimodal** — Sentence-Transformers / CLIP (`clip-ViT-B-32`), PyTorch (zero-shot).
 
 ### Repository structure
 
@@ -148,12 +184,14 @@ p6-product-classification-nlp-cv/
 ├── requirements.txt                            # pinned dependencies
 ├── LICENSE                                      # MIT
 ├── results_supervised.json                     # phase-2 metrics (reproducible)
+├── results_clip_zeroshot.json                  # 2026 CLIP zero-shot metrics
 ├── notebooks/
 │   ├── 01_product_classification_text_image.ipynb   # phase 1 — unsupervised benchmark
-│   ├── 02_supervised_fusion.ipynb                   # phase 2 — supervised + late fusion
-│   └── 03_modern_2026_approach.ipynb                # design note — CLIP / 2026
+│   ├── 02_supervised_fusion.ipynb                   # phase 2 — supervised + fusion
+│   └── 03_modern_2026_approach.ipynb                # phase 3 — CLIP zero-shot (2026)
 ├── src/
-│   └── run_supervised.py                       # phase-2 pipeline (seed=42, reproducible)
+│   ├── run_supervised.py                       # phase-2 pipeline (seed=42, workers=1)
+│   └── run_clip_zeroshot.py                    # phase-3 CLIP zero-shot pipeline
 ├── data/
 │   └── README.md                               # how to fetch the dataset (not versioned)
 └── docs/                                        # deliverables & rendered outputs
@@ -179,12 +217,16 @@ jupyter lab notebooks/01_product_classification_text_image.ipynb
 
 ### Limits & next steps
 
-- **Late fusion** — combine per-modality probabilities (averaging / stacking)
-  instead of concatenating raw features, which lost accuracy here.
-- Fine-tune BERT and a vision backbone end-to-end instead of frozen features.
+- **The fusion ceiling is real, not a tuning gap.** With only 16% of products
+  where the two modalities disagree, no fusion scheme gains much here. The way
+  up is *better single modalities*, not cleverer fusion.
+- **Fine-tune** a text and a vision backbone end-to-end instead of frozen
+  features — the most likely path past the ~0.88 image ceiling.
+- **Lift CLIP's text side** past the 77-token cap (chunk-and-pool, or a
+  long-context encoder) and prompt-tune the label templates.
 - Target the hard pairs surfaced by the confusion matrices (*Home Decor* vs
   *Home Furnishing*).
-- Scale beyond 1,050 products to confirm the ~0.82 ceiling holds.
+- Scale beyond 1,050 products to confirm the ceiling holds.
 
 ---
 
@@ -261,51 +303,87 @@ modèle retenu par modalité, puis deux stratégies de fusion comparées.
 
 | Features | Classifieur | Accuracy | Macro-F1 |
 |---|---|:--:|:--:|
-| Texte — Word2Vec | LogReg | 0,810 | 0,807 |
-| Image — VGG16 | SVM | 0,876 | 0,874 |
+| Texte — Word2Vec | LogReg | 0,814 | 0,809 |
+| **Image — VGG16** | **SVM** | **0,876** | **0,874** |
 | Early fusion (concat features) | LogReg | 0,829 | 0,825 |
-| **Late fusion (moyenne des probabilités)** | — | **0,881** | **0,877** |
+| Late fusion (moyenne des probabilités) | — | 0,881 | 0,876 |
+| Weighted fusion (w_texte = 0,50) | — | 0,881 | 0,876 |
+| Stacking (méta-LogReg sur proba OOF) | — | 0,867 | 0,864 |
 
 ![Accuracy supervisée — modalité seule vs stratégies de fusion](docs/figures/supervised_accuracy.png)
 
-Trois résultats à énoncer franchement :
+Quatre résultats à énoncer franchement — y compris celui qui casse le titre
+facile :
 
 - **Le balayage de modèles paie.** Sur l'image, le SVM (0,876) bat la régression
   logistique (0,824) de 5 points — on ne se contente pas d'un seul classifieur.
-- **L'early fusion n'aide quasiment pas (0,829).** Concaténer 300 dims texte et
-  200 dims image donne 500 variables d'échelles et densités inégales ; les
-  faibles ajoutent du bruit aussi vite que du signal. *Une fusion est un choix de
-  modélisation, pas un `np.hstack`.*
-- **Le late fusion gagne (0,881).** Moyenner les probabilités par classe des deux
-  meilleurs modèles mono-modalité dépasse *chaque* modalité seule — les modalités
-  corrigent leurs erreurs quand on les combine au niveau de la décision, pas des
-  features. Voir [notebook 02](notebooks/02_supervised_fusion.ipynb).
+- **L'early fusion fait pire que la meilleure modalité seule.** Concaténer 300
+  dims texte et 200 dims image donne 500 variables d'échelles et densités
+  inégales et fait tomber l'accuracy à 0,829 — *sous* l'image seule (0,876).
+  *Une fusion est un choix de modélisation, pas un `np.hstack`.*
+- **La fusion ne gagne presque rien — et je ne vais pas prétendre le contraire.**
+  La meilleure fusion (late / weighted, 0,881) dépasse l'image seule (0,876) de
+  **un demi-point — un produit sur 210**. Le stacking fait même *moins bien*
+  (0,867). Sur ce jeu, l'image porte déjà l'essentiel du signal ; ajouter le
+  texte n'apporte quasiment rien.
+- **Pourquoi si peu ? L'analyse d'overlap d'erreurs le dit.** Texte et image ont
+  tous deux raison sur 160/210 produits, tous deux tort sur 16. Seuls
+  **34/210 (16 %)** sont des cas où une seule modalité a raison — les seuls que
+  la fusion peut corriger. Avec si peu de désaccord à exploiter, aucune fusion ne
+  peut gagner beaucoup. C'est le plafond honnête, pas un échec de réglage. Voir
+  [notebook 02](notebooks/02_supervised_fusion.ipynb).
+
+![Pourquoi la fusion gagne peu — overlap d'erreurs texte vs image](docs/figures/error_overlap.png)
 
 > **Note de reproductibilité.** L'étude originale de 2023 affichait des valeurs
 > d'ARI différentes entre les slides et le notebook (ex. USE ≈ 0,49 vs 0,42)
 > car les seeds n'étaient pas figés. Tout ici est **ré-exécuté avec `seed=42`
-> figé** (Word2Vec, PCA, t-SNE, K-Means, split train/test), donc les chiffres
-> sont stables et reproductibles. Le tableau ARI de la phase 1 reflète les
-> valeurs du notebook.
+> figé** (Word2Vec, PCA, t-SNE, K-Means, split train/test). Subtilité trouvée au
+> ré-run : Word2Vec n'est déterministe qu'avec `workers=1` — à plusieurs workers
+> l'ordre d'entraînement varie et chaque métrique aval bouge d'environ 1 point
+> d'un run à l'autre, seed pourtant figé. Les chiffres de la phase 2 ci-dessus
+> viennent du run mono-worker, entièrement reproductible
+> ([`results_supervised.json`](results_supervised.json)).
 
-### Comment je referais ce projet en 2026
+### L'angle 2026 — CLIP zero-shot, vraiment exécuté
 
-Le projet date de 2023 ; le domaine a beaucoup bougé. Plutôt que de faire comme
-si de rien n'était, le [notebook 03](notebooks/03_modern_2026_approach.ipynb) est
-une note de conception : ce que je changerais aujourd'hui — et ce que je garderais.
+Le projet date de 2023 ; le domaine a beaucoup bougé. Plutôt qu'une note de
+conception, j'ai **exécuté** l'approche moderne sur les mêmes 1 050 produits et
+je l'ai mesurée.
 
-| 2023 (ce projet) | 2026 | Pourquoi |
-|---|---|---|
-| Word2Vec / BERT `[CLS]`, gelés | **Sentence-Transformers** (`all-MiniLM`, `bge`) | embeddings conçus pour la similarité, pas détournés |
-| features VGG16 | **DINOv2 / ViT moderne** | features visuelles plus fortes et transférables |
-| deux encodeurs + late fusion | **CLIP — un espace texte+image partagé** | multimodal natif ; la fusion devient triviale |
+L'idée : **CLIP** place texte et image dans *un seul* espace vectoriel partagé,
+donc tout le problème early-vs-late fusion disparaît — et on peut classer en
+**zero-shot**, en encodant les *noms* de catégories et en prenant le plus proche.
+Sans entraînement, sans labels, en trois lignes.
 
-Le vrai déclic, c'est **CLIP** : texte et image atterrissent dans le *même*
-espace vectoriel, donc tout le problème early-vs-late fusion disparaît — et on
-obtient de la **classification zero-shot** (étiqueter un produit en écrivant le
-nom de la catégorie, sans entraînement). Le pipeline 2023 reste une baseline
-valide et légère ; ce qui change, c'est l'outillage, pas la rigueur (protocole
-équitable, seeds figés, résultats négatifs assumés restent valables).
+| Approche | Entraînement | Accuracy | Macro-F1 |
+|---|:--:|:--:|:--:|
+| CLIP zero-shot — texte seul | aucun | 0,635 | 0,636 |
+| CLIP zero-shot — image seule | aucun | 0,691 | 0,673 |
+| **CLIP zero-shot — image + texte** | **aucun** | **0,716** | **0,708** |
+| *Supervisé 2023 — VGG16 + SVM* | *entraîné* | *0,876* | *0,874* |
+| *Supervisé 2023 — late fusion* | *entraîné* | *0,881* | *0,876* |
+
+![CLIP zero-shot vs le pipeline supervisé 2023](docs/figures/clip_zeroshot.png)
+
+**Lecture honnête :** le zero-shot CLIP atteint **72 %** sur 7 classes **sans un
+seul exemple étiqueté** — mais reste ~16 points derrière le pipeline 2023
+*entraîné* (88 %). Donc CLIP ne bat pas un modèle supervisé ici ; ce qu'il
+apporte, c'est **zéro entraînement, zéro donnée étiquetée, et la fusion
+multimodale gratuite** (une moyenne dans l'espace partagé). Pour un catalogue en
+démarrage à froid sans labels, 72 % immédiats changent radicalement le rapport
+coût/bénéfice face à la collecte d'un jeu d'entraînement. Voir
+[notebook 03](notebooks/03_modern_2026_approach.ipynb) et
+[`src/run_clip_zeroshot.py`](src/run_clip_zeroshot.py).
+
+**Une vraie limite, dite franchement :** l'encodeur texte de CLIP est plafonné à
+**77 tokens** ; les descriptions Flipkart montent à ~700, donc le côté texte est
+tronqué et perd de l'information — en partie pourquoi le zero-shot texte seul
+(0,635) est le plus faible.
+
+Ce que je **garde** de 2023 : le protocole partagé équitable, les seeds figés, un
+jeu de test tenu à part, et l'honnêteté sur les résultats négatifs. Les modèles
+modernes changent les *outils*, pas la *rigueur*.
 
 ### Stack technique
 
@@ -314,6 +392,7 @@ WordNet), scikit-learn (CountVectorizer, TF-IDF), gensim (Word2Vec), Hugging Fac
 Transformers (BERT), TensorFlow Hub (USE).
 **Computer Vision** — OpenCV (SIFT), TensorFlow / Keras (VGG16 transfer learning).
 **ML & viz** — scikit-learn (PCA, t-SNE, K-Means, ARI), pandas, matplotlib, seaborn.
+**Multimodal 2026** — Sentence-Transformers / CLIP (`clip-ViT-B-32`), PyTorch (zero-shot).
 
 ### Reproduire
 
@@ -331,13 +410,18 @@ jupyter lab notebooks/01_product_classification_text_image.ipynb
 
 ### Limites & suites
 
-- **Late fusion** — combiner les probabilités par modalité (moyenne / stacking)
-  au lieu de concaténer les features brutes, qui a fait perdre de l'accuracy ici.
-- Fine-tuner BERT et un backbone vision de bout en bout plutôt que des features
-  gelées.
+- **Le plafond de la fusion est réel, pas un défaut de réglage.** Avec seulement
+  16 % de produits où les deux modalités divergent, aucune fusion ne gagne
+  beaucoup ici. La marge de progrès est dans *de meilleures modalités seules*,
+  pas dans une fusion plus maligne.
+- **Fine-tuner** un backbone texte et un backbone vision de bout en bout plutôt
+  que des features gelées — la voie la plus probable au-delà du plafond ~0,88 de
+  l'image.
+- **Lever la limite texte de CLIP** (plafond 77 tokens : chunk-and-pool, ou un
+  encodeur long-contexte) et prompt-tuner les gabarits de labels.
 - Viser les paires difficiles révélées par les matrices de confusion
   (*Home Decor* vs *Home Furnishing*).
-- Passer à l'échelle au-delà de 1 050 produits pour confirmer le plafond ~0,82.
+- Passer à l'échelle au-delà de 1 050 produits pour confirmer le plafond.
 
 ---
 

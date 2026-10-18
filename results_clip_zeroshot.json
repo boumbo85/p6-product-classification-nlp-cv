@@ -1,0 +1,39 @@
+{
+  "model": "clip-ViT-B-32",
+  "zero_shot": true,
+  "seed": 42,
+  "n": 1050,
+  "categories": [
+    "Baby Care",
+    "Beauty and Personal Care",
+    "Computers",
+    "Home Decor & Festive Needs",
+    "Home Furnishing",
+    "Kitchen & Dining",
+    "Watches"
+  ],
+  "metrics": {
+    "clip_image": {
+      "accuracy": 0.6914,
+      "macro_f1": 0.6731
+    },
+    "clip_text": {
+      "accuracy": 0.6352,
+      "macro_f1": 0.6357
+    },
+    "clip_fused": {
+      "accuracy": 0.7162,
+      "macro_f1": 0.7081
+    }
+  },
+  "supervised_reference": {
+    "image_VGG16_SVM": {
+      "accuracy": 0.8762,
+      "macro_f1": 0.8744
+    },
+    "late_fusion": {
+      "accuracy": 0.881,
+      "macro_f1": 0.876
+    }
+  }
+}

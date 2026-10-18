@@ -7796,169 +7796,155 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=38af13f9">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=80dfceae">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="How-I'd-approach-this-in-2026-%E2%80%94-CLIP-&amp;-modern-embeddings">How I'd approach this in 2026 — CLIP &amp; modern embeddings<a class="anchor-link" href="#How-I'd-approach-this-in-2026-%E2%80%94-CLIP-&amp;-modern-embeddings">¶</a></h1><blockquote>
-<p><strong>Context.</strong> The original project (2023) used Word2Vec, BERT and VGG16 — solid
-for its time. The field moved fast. This notebook is a <strong>design note</strong>, not a
-re-run: what I would change today and <em>why</em>, with illustrative code. It is the
-"senior perspective" companion to notebooks 01–02.</p>
+<h1 id="Phase-3-%E2%80%94-The-2026-approach:-CLIP-zero-shot-(actually-run)">Phase 3 — The 2026 approach: CLIP zero-shot (actually run)<a class="anchor-link" href="#Phase-3-%E2%80%94-The-2026-approach:-CLIP-zero-shot-(actually-run)">¶</a></h1><blockquote>
+<p><strong>This is not a design note.</strong> The modern approach was <em>run</em> on the same 1,050
+Flipkart products and measured. Full pipeline: <code>src/run_clip_zeroshot.py</code> →
+<code>results_clip_zeroshot.json</code>.</p>
 </blockquote>
-<hr/>
-<h3 id="TL;DR-%E2%80%94-three-upgrades">TL;DR — three upgrades<a class="anchor-link" href="#TL;DR-%E2%80%94-three-upgrades">¶</a></h3><table>
+<p>In 2023 the hard part was <em>fusing</em> two unrelated feature spaces (Word2Vec vs
+VGG16) — hence the early-vs-late fusion study in notebook 02. <strong>CLIP removes the
+problem by construction:</strong> it is trained so an image and its text land at the
+<em>same place</em> in one vector space. Classification, retrieval and even zero-shot
+labelling then become cosine-similarity lookups.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=1ab20cc7">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="1-%C2%B7-Zero-shot-classification-%E2%80%94-no-training-at-all">1 · Zero-shot classification — no training at all<a class="anchor-link" href="#1-%C2%B7-Zero-shot-classification-%E2%80%94-no-training-at-all">¶</a></h2><p>With CLIP you classify into the 7 categories <strong>without a single labelled
+example</strong>: embed the category <em>names</em> as text, embed each product (image and/or
+text), and assign the nearest category by cosine similarity. In 2023 this needed
+K-Means + manual Hungarian alignment; here it is a dot product.</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=e1d219e4">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-python"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sentence_transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">SentenceTransformer</span>
+<span class="n">clip</span> <span class="o">=</span> <span class="n">SentenceTransformer</span><span class="p">(</span><span class="s2">"clip-ViT-B-32"</span><span class="p">)</span>        <span class="c1"># runs on CPU</span>
+
+<span class="c1"># CLIP's text encoder is capped at 77 tokens; Flipkart descriptions run to ~700,</span>
+<span class="c1"># so we force truncation at tokenisation time (see run_clip_zeroshot.py).</span>
+
+<span class="n">prompts</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"a photo of a product in the category: </span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cats</span><span class="p">]</span>
+<span class="n">label_emb</span> <span class="o">=</span> <span class="n">clip</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">prompts</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>       <span class="c1"># (7, 512)</span>
+
+<span class="n">img_emb</span> <span class="o">=</span> <span class="n">clip</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>          <span class="c1"># (n, 512)</span>
+<span class="n">txt_emb</span> <span class="o">=</span> <span class="n">clip</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">descriptions</span><span class="p">,</span> <span class="n">normalize_embeddings</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>    <span class="c1"># (n, 512)</span>
+
+<span class="n">pred_img</span>  <span class="o">=</span> <span class="p">(</span><span class="n">img_emb</span> <span class="o">@</span> <span class="n">label_emb</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>                     <span class="c1"># zero-shot, image</span>
+<span class="n">pred_txt</span>  <span class="o">=</span> <span class="p">(</span><span class="n">txt_emb</span> <span class="o">@</span> <span class="n">label_emb</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>                     <span class="c1"># zero-shot, text</span>
+<span class="n">fused</span>     <span class="o">=</span> <span class="n">img_emb</span> <span class="o">+</span> <span class="n">txt_emb</span>                                     <span class="c1"># fusion = a mean,</span>
+<span class="n">fused</span>    <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">fused</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>          <span class="c1">#   same shared space</span>
+<span class="n">pred_fuse</span> <span class="o">=</span> <span class="p">(</span><span class="n">fused</span> <span class="o">@</span> <span class="n">label_emb</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=27b5f8a6">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h3 id="Measured-output-(zero-shot,-n=1,050,-no-training)">Measured output (zero-shot, n=1,050, no training)<a class="anchor-link" href="#Measured-output-(zero-shot,-n=1,050,-no-training)">¶</a></h3><pre><code>CLIP zero-shot · text only     acc=0.635  macroF1=0.636
+CLIP zero-shot · image only     acc=0.691  macroF1=0.673
+CLIP zero-shot · image + text   acc=0.716  macroF1=0.708   &lt;- best zero-shot
+</code></pre>
+<p><img alt="CLIP zero-shot vs supervised 2023" src="../docs/figures/clip_zeroshot.png"/>
+<img alt="CLIP zero-shot confusion matrix" src="../docs/figures/clip_zeroshot_confusion.png"/></p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=73fc6344">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="2-%C2%B7-The-honest-read">2 · The honest read<a class="anchor-link" href="#2-%C2%B7-The-honest-read">¶</a></h2><table>
 <thead>
 <tr>
-<th>2023 (original)</th>
-<th>2026 (what I'd do)</th>
-<th>Why it's better</th>
+<th>Approach</th>
+<th style="text-align:center">Training</th>
+<th style="text-align:center">Accuracy</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Word2Vec / BERT <code>[CLS]</code>, frozen</td>
-<td><strong>Sentence-Transformers</strong> (e.g. <code>all-MiniLM</code>, <code>bge</code>)</td>
-<td>Embeddings <em>designed</em> for sentence similarity, not repurposed</td>
+<td>CLIP zero-shot — image + text</td>
+<td style="text-align:center"><strong>none</strong></td>
+<td style="text-align:center"><strong>0.716</strong></td>
 </tr>
 <tr>
-<td>VGG16 penultimate layer</td>
-<td><strong>DINOv2 / modern ViT</strong> or a CLIP image tower</td>
-<td>Stronger, more transferable visual features</td>
+<td>Supervised 2023 — VGG16 + SVM</td>
+<td style="text-align:center">trained</td>
+<td style="text-align:center">0.876</td>
 </tr>
 <tr>
-<td>Two separate encoders + late fusion</td>
-<td><strong>CLIP — one shared text+image space</strong></td>
-<td>Native multimodal: text and image embeddings are directly comparable</td>
+<td>Supervised 2023 — late fusion</td>
+<td style="text-align:center">trained</td>
+<td style="text-align:center">0.881</td>
 </tr>
 </tbody>
 </table>
+<p>Zero-shot CLIP reaches <strong>72%</strong> on 7 classes <strong>with no labelled data</strong> — but stays
+~16 points behind the <em>trained</em> 2023 pipeline. CLIP does <strong>not</strong> beat a
+supervised model here. What it buys is a different cost structure: <strong>no training,
+no labels, and multimodal fusion for free</strong> (a mean in the shared space). For a
+cold-start catalogue with no labels, 72% out of the box beats collecting and
+labelling a training set — that is the real 2026 argument, not "CLIP wins".</p>
 </div>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=2ed8eb3e">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=dd9c9c41">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="1-%C2%B7-The-core-idea:-a-shared-embedding-space">1 · The core idea: a shared embedding space<a class="anchor-link" href="#1-%C2%B7-The-core-idea:-a-shared-embedding-space">¶</a></h2><p>In 2023 the hard part was <em>fusing</em> two unrelated feature spaces (Word2Vec vs
-VGG16) — hence the early-vs-late fusion study in notebook 02. <strong>CLIP removes the
-problem by construction:</strong> it is trained so that an image and its text land at
-the <em>same place</em> in one vector space. Classification, retrieval and even
-zero-shot labelling then become cosine-similarity lookups.</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=28526d7a">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1"># Illustrative — requires: pip install sentence-transformers torch</span>
-<span class="c1"># from sentence_transformers import SentenceTransformer</span>
-<span class="c1"># clip = SentenceTransformer("clip-ViT-B-32")</span>
-<span class="c1">#</span>
-<span class="c1"># txt_emb = clip.encode(df["description"].tolist())          # (n, 512)</span>
-<span class="c1"># img_emb = clip.encode([Image.open(p) for p in image_paths]) # (n, 512)  — SAME space!</span>
-<span class="c1">#</span>
-<span class="c1"># A product's text and its photo are now directly comparable (cosine).</span>
-</pre></div>
+<h2 id="3-%C2%B7-A-real-limitation">3 · A real limitation<a class="anchor-link" href="#3-%C2%B7-A-real-limitation">¶</a></h2><p>CLIP's text encoder is hard-capped at <strong>77 tokens</strong>. Flipkart descriptions run up
+to ~700 tokens, so the text side is <strong>truncated</strong> and loses information — part of
+why text-only zero-shot (0.635) is the weakest of the three. Lifting this
+(chunk-and-pool, or a long-context multimodal encoder) is the obvious next step.</p>
 </div>
 </div>
 </div>
 </div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=e670e594">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a08557ad">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="2-%C2%B7-Zero-shot-classification-%E2%80%94-no-training-at-all">2 · Zero-shot classification — <em>no training at all</em><a class="anchor-link" href="#2-%C2%B7-Zero-shot-classification-%E2%80%94-no-training-at-all">¶</a></h2><p>With CLIP you can classify into the 7 categories <strong>without a single labelled
-example</strong>: embed the category names as text, embed each product (text and/or
-image), and assign the nearest category. In 2023 this needed K-Means + manual
-alignment; in 2026 it is three lines.</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=3a53b94c">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1"># label_prompts = [f"a product in the category: {c}" for c in cats]</span>
-<span class="c1"># label_emb = clip.encode(label_prompts)                      # (7, 512)</span>
-<span class="c1">#</span>
-<span class="c1"># sims = img_emb @ label_emb.T                                # cosine similarities</span>
-<span class="c1"># pred = sims.argmax(axis=1)                                  # zero-shot prediction</span>
-<span class="c1"># -&gt; expected to rival the 2023 *supervised* pipeline, with zero labels</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=96cb0fad">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="3-%C2%B7-True-multimodal-fusion-%E2%80%94-trivial-in-a-shared-space">3 · True multimodal fusion — trivial in a shared space<a class="anchor-link" href="#3-%C2%B7-True-multimodal-fusion-%E2%80%94-trivial-in-a-shared-space">¶</a></h2><p>Because text and image embeddings live in one space, "fusion" is just an
-average (or a concatenation that finally makes sense), then a light classifier —
-or again zero-shot. No more early-vs-late dilemma.</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=8edb3f07">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-python"><pre><span></span><span class="c1"># fused = (txt_emb + img_emb) / 2        # meaningful: same space, same scale</span>
-<span class="c1"># LogisticRegression().fit(fused[train], y[train])   # a strong, tiny head</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=3e96664d">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="4-%C2%B7-What-I-would-keep-from-2023">4 · What I would keep from 2023<a class="anchor-link" href="#4-%C2%B7-What-I-would-keep-from-2023">¶</a></h2><p>Not everything should change — the <em>method</em> still holds:</p>
+<h2 id="4-%C2%B7-What-I-keep-from-2023">4 · What I keep from 2023<a class="anchor-link" href="#4-%C2%B7-What-I-keep-from-2023">¶</a></h2><p>Not everything should change. The <em>method</em> still holds:</p>
 <ul>
 <li>the <strong>fair, shared evaluation protocol</strong> across approaches;</li>
-<li><strong>fixed seeds</strong> and a held-out test set for reproducibility;</li>
-<li><strong>late fusion at the decision level</strong> remains a strong, cheap baseline;</li>
-<li>reporting the <strong>negative result</strong> (naïve concat) honestly.</li>
+<li><strong>fixed seeds</strong> (and <code>workers=1</code> for Word2Vec) + a held-out test set;</li>
+<li><strong>honest negatives</strong> — the small fusion gain in notebook 02, the 77-token cap here.</li>
 </ul>
 <p>Modern models change the <em>tools</em>, not the <em>rigour</em>.</p>
-<h2 id="5-%C2%B7-Expected-payoff-&amp;-honest-caveats">5 · Expected payoff &amp; honest caveats<a class="anchor-link" href="#5-%C2%B7-Expected-payoff-&amp;-honest-caveats">¶</a></h2><ul>
-<li><strong>Likely higher accuracy</strong> and, more importantly, <strong>zero-shot</strong> capability —
-add a new category without retraining, just by writing its name.</li>
-<li><strong>One model instead of three</strong> (CLIP replaces Word2Vec + BERT + VGG16).</li>
-<li><strong>Caveat:</strong> CLIP is English-centric and web-biased; on niche e-commerce
-categories a short fine-tune (LoRA) or a domain-specific model may still win.
-The 2023 pipeline remains a valid, dependency-light baseline — which is exactly
-why it is worth keeping as the comparison point.</li>
-</ul>
 </div>
 </div>
 </div>
