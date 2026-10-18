@@ -47,6 +47,8 @@ would be meaningless. Every comparison below is **like-for-like**:
 
 ![Revisiting 2026 — same protocol, same metric (ARI)](docs/figures/ari_2023_vs_clip.png)
 
+**Jump to:** [The question](#the-question) · [Phase 1 — unsupervised](#approach--an-honest-unsupervised-benchmark) · [Phase 2 — supervised & fusion](#phase-2--supervised-classification--fusion) · [The 2026 angle (CLIP)](#the-2026-angle--clip-zero-shot-actually-run) · [In production](#-what-id-ship-in-production-2026) · [Critical review](#-critical-review--whats-still-imperfect) · [To-do](#-to-do-next) · [References](#references)
+
 ---
 
 ### The question
@@ -354,6 +356,8 @@ would look like this — and most of it is a short step from what's here:
 - **Hierarchical classification** on the full `product_category_tree`.
 - Re-run the full 8-method ARI benchmark in PCA space for a fully consistent
   phase 1.
+- **Unit tests + CI** (GitHub Actions): lock the category parser, the doc-vector
+  and the CLIP 77-token truncation, and run lint on every push.
 
 ### References
 
@@ -398,6 +402,8 @@ régime égal** :
   démarrage à froid.
 
 ![Revisite 2026 — même protocole, même métrique (ARI)](docs/figures/ari_2023_vs_clip.png)
+
+**Aller à :** [La question](#la-question) · [Phase 1 — non supervisé](#démarche--un-benchmark-non-supervisé-honnête) · [Phase 2 — supervisé & fusion](#phase-2--classification-supervisée--fusion) · [L'angle 2026 (CLIP)](#langle-2026--clip-vraiment-exécuté) · [En production](#-ce-que-je-mettrais-en-production-2026) · [Retour critique](#-retour-critique--ce-qui-reste-imparfait) · [To-do](#-to-do-next-1) · [Références](#références)
 
 ---
 
@@ -679,6 +685,8 @@ catalogue ressemblerait à ça — et la plupart est à un pas de ce qui existe 
 - **Classification hiérarchique** sur le `product_category_tree` complet.
 - Ré-exécuter le benchmark ARI complet (8 méthodes) en espace PCA pour une
   phase 1 totalement cohérente.
+- **Tests unitaires + CI** (GitHub Actions) : verrouiller le parseur de
+  catégories, le doc-vecteur et la troncature CLIP 77 tokens, + lint à chaque push.
 
 ### Références
 
