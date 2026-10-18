@@ -69,3 +69,6 @@ Thumbs.db
 #  Archives / deliverables bundles (keep docs/ sources instead)
 # ─────────────────────────────────────────────────────────────
 *.zip
+# Original 2023 deliverables — kept on disk, out of the showcase repo
+*.pptx
+docs/notebook_original.ipynb

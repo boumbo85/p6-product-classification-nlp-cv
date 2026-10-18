@@ -82,6 +82,12 @@ build the features — only to score them.
 
 ![ARI benchmark across the 8 methods](docs/figures/ari_benchmark.png)
 
+> **Why these differ from my 2023 slides (USE 0.49, VGG16 0.47).** Back then I
+> didn't fix the random seeds, so the numbers moved every run — and the "best"
+> text model flipped between runs. With seeds fixed, the stable winner is
+> **Word2Vec at 0.475**, not USE. The old 0.49 wasn't better, it was lucky and
+> unreproducible. I'll take a number I can reproduce over one I can't.
+
 The best image model, VGG16, is worth a closer look. Clustering alone gives
 ARI 0.460; once the clusters are optimally matched to the true categories
 (Hungarian assignment), that is a **66% accuracy** — on 7 classes, from images
@@ -115,6 +121,17 @@ then two fusion strategies compared.
 > each), so accuracy is *not* misleading here and tracks macro-F1 closely. I
 > still report **macro-F1 as the reference metric**: it is the right senior
 > reflex, and it surfaces a weak class that plain accuracy would hide.
+
+**Two ways to fuse text and image — they are not the same bet:**
+
+- **Early fusion** glues the two feature vectors end to end (concat), then one
+  model classifies the whole thing. The catch: text and image features live on
+  different scales and densities, so the weak dimensions dilute the strong ones.
+  Measured here at **0.829 — below image alone**. Concatenation is not fusion.
+- **Late fusion** keeps one classifier per modality and combines their *outputs*
+  (at the decision level). Simplest version: average the predicted probabilities.
+  Smarter version: let a small model learn how to combine them — that is what the
+  *stacking* row does (a meta-classifier on the two models' probabilities).
 
 | Features | Classifier | Accuracy | Macro-F1 |
 |---|---|:--:|:--:|
@@ -241,9 +258,8 @@ p6-product-classification-nlp-cv/
 │   └── run_clip_zeroshot.py                    # phase-3 CLIP zero-shot pipeline
 ├── data/
 │   └── README.md                               # how to fetch the dataset (not versioned)
-└── docs/                                        # deliverables & rendered outputs
-    ├── notebook_original.ipynb                 # original working notebook
-    ├── presentation.pptx                       # defence slides
+└── docs/
+    ├── articles/README.md                      # references (the 2025 paper, cited)
     ├── *.html                                  # rendered notebooks (read without Jupyter)
     └── figures/                                # charts used in this README
 ```
@@ -257,23 +273,61 @@ pip install -r requirements.txt
 jupyter lab notebooks/01_product_classification_text_image.ipynb
 ```
 
-> **Note.** Raw images (~1,050 files), the USE model (~960 MB) and the virtual
-> environment are **not** versioned — see [`data/README.md`](data/README.md) to
-> fetch them. The showcase notebook is written to be *read*; the full original
-> run lives in [`docs/`](docs/).
+> **Note.** Raw images (~1,050 files), the USE/CLIP models and the virtual
+> environment are **not** versioned — see [`data/README.md`](data/README.md).
+> The showcase notebooks are written to be *read*; HTML renders are in
+> [`docs/`](docs/).
 
-### Limits & next steps
+### What the 2025 literature says
 
-- **The fusion ceiling is real, not a tuning gap.** With only 16% of products
-  where the two modalities disagree, no fusion scheme gains much here. The way
-  up is *better single modalities*, not cleverer fusion.
-- **Fine-tune** a text and a vision backbone end-to-end instead of frozen
-  features — the most likely path past the ~0.88 image ceiling.
-- **Lift CLIP's text side** past the 77-token cap (chunk-and-pool, or a
-  long-context encoder) and prompt-tune the label templates.
-- Target the hard pairs surfaced by the confusion matrices (*Home Decor* vs
-  *Home Furnishing*).
+The approach here isn't a lucky guess. A 2025 study on exactly this problem —
+multimodal e-commerce product categorization at scale (271,700 products, 40
+platforms) — tested early, late, and attention fusion over RoBERTa, ViT and
+**CLIP**, and found **CLIP embeddings with an MLP late-fusion head gave the best
+hierarchical F1 (98.59%)**, beating single-modality baselines. Same direction I
+landed on at small scale: CLIP as the shared space, late fusion over early. They
+also report a deployment trade-off worth keeping in mind — late fusion maxes
+accuracy with diverse training data, early fusion generalises better to unseen
+platforms. See [References](#references). *(Paper summary rephrased for
+licensing compliance.)*
+
+### 🔎 Critical review — what I'd do better
+
+- **Word2Vec isn't fully deterministic even seeded.** I had to force `workers=1`
+  to stop metrics drifting ~1 point between runs. Honest fix, but it hides that
+  the real variance should be reported as a mean ± std over several seeds, not a
+  single number. That's the rigorous version.
+- **ARI through t-SNE is fragile.** Clustering on a 2D t-SNE projection is pretty
+  but t-SNE is stochastic and distorts global distances. A cleaner protocol would
+  cluster in the original (or PCA) space and report t-SNE for *visualisation only*.
+- **CLIP text truncated at 77 tokens.** Flipkart descriptions reach ~700 tokens,
+  so the text side loses information — part of why text-only zero-shot trails.
+  I took the easy truncation instead of chunk-and-pool.
+- **Single train/test split.** Fine for a feasibility study, but a 5-fold CV
+  would give confidence intervals instead of point estimates.
+- **No calibration check.** Late fusion averages probabilities as if both models
+  were calibrated. They may not be — a reliability check would make the fusion
+  argument airtight.
+
+### 🔜 To-do next
+
+- Report **mean ± std over 5 seeds** for every metric (kills the reproducibility
+  caveat above).
+- **Fine-tune** a text and a vision backbone end-to-end — likeliest path past the
+  ~0.88 image ceiling.
+- **CLIP late-fusion MLP head** (as in the 2025 paper) instead of a plain
+  probability average, and lift the 77-token cap (chunk-and-pool).
+- **5-fold CV + calibration** (reliability diagrams) for honest confidence.
 - Scale beyond 1,050 products to confirm the ceiling holds.
+
+### References
+
+- Q. Han et al., *Cross-Platform E-Commerce Product Categorization and
+  Recategorization: A Multimodal Hierarchical Classification Approach*, 2025.
+  arXiv:[2508.20013](https://arxiv.org/abs/2508.20013) ·
+  doi:[10.48550/arXiv.2508.20013](https://doi.org/10.48550/arXiv.2508.20013).
+  See [`docs/articles/README.md`](docs/articles/README.md).
+- Dataset — [Flipkart products](https://www.kaggle.com/datasets/PromptCloudHQ/flipkart-products) (public, CC0).
 
 ---
 
@@ -343,6 +397,13 @@ ne sert à construire les features — seulement à les évaluer.
 
 ![Benchmark ARI des 8 méthodes](docs/figures/ari_benchmark.png)
 
+> **Pourquoi ça diffère de mes slides 2023 (USE 0,49, VGG16 0,47).** À l'époque
+> je ne figeais pas les seeds : les chiffres bougeaient à chaque run, et le
+> « meilleur » modèle texte changeait d'un run à l'autre. Seeds figés, le gagnant
+> stable est **Word2Vec à 0,475**, pas USE. Le vieux 0,49 n'était pas meilleur,
+> il était chanceux et non reproductible. Je préfère un chiffre que je peux
+> refaire à l'identique à un chiffre que je ne peux pas réexpliquer.
+
 Le meilleur modèle image, VGG16, mérite un zoom. Le clustering seul donne
 ARI 0,460 ; une fois les clusters alignés de façon optimale sur les vraies
 catégories (affectation hongroise), cela correspond à **66% d'accuracy** — sur
@@ -380,6 +441,18 @@ modèle retenu par modalité, puis deux stratégies de fusion comparées.
 > près au macro-F1. Je garde malgré tout le **macro-F1 comme métrique de
 > référence** : c'est le bon réflexe de senior, et il révèle une classe faible
 > que l'accuracy seule masquerait.
+
+**Deux façons de fusionner texte et image — ce ne sont pas le même pari :**
+
+- **Early fusion** : on colle les deux vecteurs de features bout à bout (concat),
+  puis un seul modèle classe le tout. Le piège : texte et image sont à des
+  échelles et densités différentes, donc les dimensions faibles diluent les
+  fortes. Mesuré ici à **0,829 — sous l'image seule**. Concaténer n'est pas
+  fusionner.
+- **Late fusion** : un classifieur par modalité, puis on combine leurs *sorties*
+  (au niveau décision). Version simple : moyenner les probabilités. Version plus
+  maligne : laisser un petit modèle apprendre à les combiner — c'est ce que fait
+  la ligne *stacking* (un méta-classifieur sur les probabilités des deux modèles).
 
 | Features | Classifieur | Accuracy | Macro-F1 |
 |---|---|:--:|:--:|
@@ -500,26 +573,65 @@ pip install -r requirements.txt
 jupyter lab notebooks/01_product_classification_text_image.ipynb
 ```
 
-> **Note.** Les images brutes (~1 050 fichiers), le modèle USE (~960 Mo) et
+> **Note.** Les images brutes (~1 050 fichiers), les modèles USE/CLIP et
 > l'environnement virtuel ne sont **pas** versionnés — voir
-> [`data/README.md`](data/README.md). Le notebook vitrine est pensé pour être
-> *lu* ; le run original complet est dans [`docs/`](docs/).
+> [`data/README.md`](data/README.md). Les notebooks sont pensés pour être *lus* ;
+> les rendus HTML sont dans [`docs/`](docs/).
 
-### Limites & suites
+### Ce que dit la littérature 2025
 
-- **Le plafond de la fusion est réel, pas un défaut de réglage.** Avec seulement
-  16 % de produits où les deux modalités divergent, aucune fusion ne gagne
-  beaucoup ici. La marge de progrès est dans *de meilleures modalités seules*,
-  pas dans une fusion plus maligne.
-- **Fine-tuner** un backbone texte et un backbone vision de bout en bout plutôt
-  que des features gelées — la voie la plus probable au-delà du plafond ~0,88 de
-  l'image.
-- **Lever la limite texte de CLIP** (plafond 77 tokens : chunk-and-pool, ou un
-  encodeur long-contexte) et prompt-tuner les gabarits de labels.
-- Viser les paires difficiles révélées par les matrices de confusion
-  (*Home Decor* vs *Home Furnishing*).
+La démarche ici n'est pas un coup de chance. Une étude de 2025 sur exactement ce
+problème — catégorisation multimodale de produits e-commerce à grande échelle
+(271 700 produits, 40 plateformes) — a testé les fusions early, late et attention
+sur RoBERTa, ViT et **CLIP**, et trouvé que **CLIP avec une tête de late fusion
+MLP donne le meilleur F1 hiérarchique (98,59 %)**, devant les baselines
+mono-modalité. Même direction que celle où j'ai atterri à petite échelle : CLIP
+comme espace partagé, late fusion plutôt qu'early. Ils notent aussi un arbitrage
+de déploiement utile — la late fusion maximise l'accuracy avec des données
+d'entraînement variées, l'early fusion généralise mieux à des plateformes
+inconnues. Voir [Références](#références). *(Résumé de l'article reformulé pour
+conformité aux licences.)*
+
+### 🔎 Retour critique — ce que j'aurais pu mieux faire
+
+- **Word2Vec n'est pas vraiment déterministe, même seedé.** J'ai dû forcer
+  `workers=1` pour stopper la dérive de ~1 point entre runs. Correctif honnête,
+  mais la vraie rigueur serait de reporter une **moyenne ± écart-type sur
+  plusieurs seeds**, pas un chiffre unique.
+- **L'ARI via t-SNE est fragile.** Clusteriser sur une projection t-SNE 2D est
+  joli, mais t-SNE est stochastique et déforme les distances globales. Plus
+  propre : clusteriser dans l'espace d'origine (ou PCA), et garder t-SNE pour la
+  *visualisation* seulement.
+- **Texte CLIP tronqué à 77 tokens.** Les descriptions Flipkart montent à ~700,
+  le texte perd de l'info — en partie pourquoi le zero-shot texte seul est en
+  retrait. J'ai pris la troncature facile plutôt qu'un chunk-and-pool.
+- **Un seul split train/test.** OK pour une étude de faisabilité, mais une
+  validation croisée 5-fold donnerait des intervalles de confiance.
+- **Pas de vérif de calibration.** La late fusion moyenne les probabilités comme
+  si les deux modèles étaient calibrés. Un diagramme de fiabilité rendrait
+  l'argument fusion imparable.
+
+### 🔜 To-do next
+
+- Reporter **moyenne ± écart-type sur 5 seeds** pour chaque métrique (règle le
+  point reproductibilité ci-dessus).
+- **Fine-tuner** un backbone texte et un backbone vision de bout en bout — voie
+  la plus probable au-delà du plafond ~0,88 de l'image.
+- **Tête de late fusion MLP CLIP** (comme l'article 2025) au lieu d'une simple
+  moyenne de probabilités, et lever le plafond 77 tokens (chunk-and-pool).
+- **5-fold CV + calibration** (diagrammes de fiabilité) pour une confiance
+  honnête.
 - Passer à l'échelle au-delà de 1 050 produits pour confirmer le plafond.
+
+### Références
+
+- Q. Han et al., *Cross-Platform E-Commerce Product Categorization and
+  Recategorization: A Multimodal Hierarchical Classification Approach*, 2025.
+  arXiv:[2508.20013](https://arxiv.org/abs/2508.20013) ·
+  doi:[10.48550/arXiv.2508.20013](https://doi.org/10.48550/arXiv.2508.20013).
+  Voir [`docs/articles/README.md`](docs/articles/README.md).
+- Dataset — [Flipkart products](https://www.kaggle.com/datasets/PromptCloudHQ/flipkart-products) (public, CC0).
 
 ---
 
-*Dataset: [Flipkart products](https://www.kaggle.com/datasets/PromptCloudHQ/flipkart-products) (public, CC0). Project built for the OpenClassrooms Data Scientist path.*
+*Dataset: [Flipkart products](https://www.kaggle.com/datasets/PromptCloudHQ/flipkart-products) (public, CC0). Built for the OpenClassrooms Data Scientist path, revisited in 2026.*
