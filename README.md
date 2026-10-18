@@ -111,6 +111,11 @@ actually classify?"* — supervised classifiers (Logistic Regression / SVM /
 Random Forest), fixed seed, stratified 80/20 split, best model kept per modality,
 then two fusion strategies compared.
 
+> **On the choice of metric.** The 7 classes are perfectly balanced (150 products
+> each), so accuracy is *not* misleading here and tracks macro-F1 closely. I
+> still report **macro-F1 as the reference metric**: it is the right senior
+> reflex, and it surfaces a weak class that plain accuracy would hide.
+
 | Features | Classifier | Accuracy | Macro-F1 |
 |---|---|:--:|:--:|
 | Text — Word2Vec | LogReg | 0.814 | 0.809 |
@@ -369,6 +374,12 @@ La phase 1 répond à *« le signal existe-t-il ? »*. La phase 2 répond à
 *« à quel point sait-on classer ? »* — des classifieurs supervisés (régression
 logistique / SVM / Random Forest), seed figé, split stratifié 80/20, meilleur
 modèle retenu par modalité, puis deux stratégies de fusion comparées.
+
+> **Sur le choix de la métrique.** Les 7 classes sont parfaitement équilibrées
+> (150 produits chacune), donc l'accuracy n'est *pas* trompeuse ici et colle de
+> près au macro-F1. Je garde malgré tout le **macro-F1 comme métrique de
+> référence** : c'est le bon réflexe de senior, et il révèle une classe faible
+> que l'accuracy seule masquerait.
 
 | Features | Classifieur | Accuracy | Macro-F1 |
 |---|---|:--:|:--:|
